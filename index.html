@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Music Library</title>
+    <script src="https://cdn.jsdelivr.net/gh/lit/dist@3.2.1/core/lit-core.min.js" type="module" defer></script>
+    <script src="././components/component-filters.js" type="module"></script>
+    <script src="././components/component-grid.js" type="module"></script>
+    <script src="././components/component-card.js" type="module"></script>
+    <script src="././components/component-screen.js" type="module"></script>
+    <link type="text/css" rel="stylesheet" href="././assets/css/style.css"></link>
+    <link href="https://fonts.googleapis.com/css2?family=Vollkorn&family=Rubik&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-sand">
+    <a href="#mainContent" id="skipToContent" class="sr-only">Skip to content</a>
+    <header>
+      <div></div>
+      <music-filters></music-filters>
+    </header>
+    <main id="main" class="flex flex-column flex-nowrap">
+      <music-grid></music-grid>
+      <music-info-screen></music-info-screen>
+    </main>
+    <footer></footer>
+    <noscript>
+      <p>This app requires Javascript.</p>
+    </noscript>
+  </body>
+</html>
