@@ -4,32 +4,32 @@ import { isMobile, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '
 
 class MusicGrid extends LitElement {
   static properties = {
-    
+    music_library_data: { type: Array },
   }
 
   constructor() {
     super();
 
-    // Hardcoded to avoid having to login every time. As a result, 
-    // this only works with public collections and folders.
-    this.profile = {
-      user_name: 'sojournaut',
-      folders: [
-        { handle: 'vinyl', id: '3827785' },
-        { handle: 'cd', id: '6104421' },
-      ],
+    // Check if we already have unexpired data
+    this.music_library_data = getLocalStorageWithExpiry('music_library_data') || null;
+
+    // If no unexpired data, make new request(s)
+    if (!this.music_library_data) {
+      // Hardcoded to avoid having to login every time and to get data specific to this profile.
+      // NOTE: Without login, only public collections and folders are accessible.
+      this.music_library_data = {
+        user_name: 'sojournaut',
+        folders: [
+          { handle: 'vinyl', id: '3827785' },
+          { handle: 'cd', id: '6104421' },
+        ],
+      };
+      for (const folder of this.music_library_data.folders) {
+        this._getFolderContents(this.music_library_data.user_name, folder.id);
+      }
     }
 
-    for (const folder of this.profile.folders) {
-      this._getFolderContents(this.profile.user_name, folder.id);
-    }
-    document.addEventListener('music-library:data-ready', (event) => {
-      const folderToUpdate = this.profile.folders.find(
-        (folder) => folder.id === event.detail.folder
-      );
-      const indexToUpdate = this.profile.folders.indexOf(folderToUpdate);
-      this.profile.folders[indexToUpdate] = event.detail.contents;
-    });
+    console.log(this.music_library_data)
   }
 
   connectedCallback() {
@@ -45,6 +45,7 @@ class MusicGrid extends LitElement {
     let nextPage;
     let folderContents = [];
 
+    // Get first page of results
     await fetch(
       `https://api.discogs.com/users/${user}/collection/folders/${folderId}/releases?page=1&per_page=100&sort=artist`
     ).then((response) => {
@@ -58,12 +59,12 @@ class MusicGrid extends LitElement {
     .catch(error => {
       console.error('Error fetching data:', error);
     });
-
     folderContents = this._mapItemData(firstPage);
 
+    // Get subsequent pages
     for (let page = 2; page <= firstPage.pagination.pages; page++) {
       await fetch(
-        `https://api.discogs.com/users/${this.profile.user_name}/collection/folders/${folderId}/releases?page=${page}&per_page=100&sort=artist`
+        `https://api.discogs.com/users/${this.music_library_data.user_name}/collection/folders/${folderId}/releases?page=${page}&per_page=100&sort=artist`
       ).then((response) => {
         if (response.ok) {
           return response.json();
@@ -75,25 +76,28 @@ class MusicGrid extends LitElement {
       .catch(error => {
         console.error('Error fetching data:', error);
       });
-
       folderContents = [...folderContents, ...nextPage];
     }
-    
-    document.dispatchEvent(new CustomEvent('music-library:data-ready', {
-      detail: {
-        folder: folderId,
-        contents: folderContents,
-      }
-    }));
+
+    const folderToUpdate = this.music_library_data.folders.find(
+      (folder) => folder.id === folderId
+    );
+    const indexToUpdate = this.music_library_data.folders.indexOf(folderToUpdate);
+    this.music_library_data.folders[indexToUpdate].contents = folderContents;
+
+    // Store data in localStorage with 14d expiry
+    setLocalStorageWithExpiry('music_library_data', this.music_library_data, 1209600000)
   }
 
   _mapItemData(data) {
     return data?.releases?.map((release) => {
       return {
+        id: release.id,
         image_thumbnail: release.basic_information.thumb,
         image_cover: release.basic_information.cover_image,
         title: release.basic_information.title,
         year: release.basic_information.year,
+        year_added: release.date_added.split('-')[0],
         artist: release.basic_information.artists[0].name,
         genres: release.basic_information.genres,
         styles: release.basic_information.styles,
@@ -103,7 +107,22 @@ class MusicGrid extends LitElement {
 
   render() {
     return html`
-      <div></div>
+      <div>
+        ${repeat(
+          this.music_library_data.folders,
+          (folder) => folder.id,
+          (folder, index) => html`
+            <h2>${folder.handle}</h2>
+            ${repeat(
+              folder.contents,
+              (item) => item.id,
+              item => html`
+                <li>${item.title}</li>
+              `
+            )}
+          `
+        )}
+      </div>
     `;
   }
 }
