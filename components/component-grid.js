@@ -107,24 +107,38 @@ class MusicGrid extends LitElement {
     });
   }
 
+  _listArtists(folderId) {
+    let artists = [];
+    for (const folder of this.music_library_data.folders) {
+      if (folder.id === folderId) {
+        for (const record of folder.contents) {
+          artists.push(record.artist);
+        }
+      }
+    }
+    return [...new Set(artists)];
+  }
+
   render() {
     return html`
       <div>
         ${repeat(
           this.music_library_data.folders,
-          (folder) => folder.id,
-          (folder) => html`
+          folder => folder.id,
+          folder => html`
             <h2>${folder.handle}</h2>
             ${repeat(
-              folder.contents,
-              (record) => record.id,
-              (record) => html`
-                <h3>${record.artist}</h3>
+              this._listArtists(folder.id),
+              artist => artist,
+              artist => html`
+                <h3>${artist}</h3>
                 <ul>
                   ${repeat(
-                    folder.contents.filter(item => item.artist === record.artist),
-                    (item) => item.id,
-                    (item) => html`
+                    folder.contents.filter(
+                      item => item.artist === artist
+                    ),
+                    item => item.id,
+                    item => html`
                       <li>${item.title}</li>
                     `
                   )}
