@@ -4,32 +4,41 @@ import { isMobile, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '
 
 class MusicGrid extends LitElement {
   static properties = {
-    music_library_data: { type: Array },
+    data_ready: {
+      type: Boolean,
+      attribute: false,
+      state: true
+    },
+    music_library_data: {
+      type: Array,
+      attribute: false,
+      state: true
+    },
   }
 
   constructor() {
     super();
 
+    this.data_ready = false;
+    // Hardcoded to avoid having to login every time and to get data specific to this profile.
+    // NOTE: Without login, only public collections and folders are accessible.
+    this.music_library_data = {
+      user_name: 'sojournaut',
+      folders: [
+        { handle: 'vinyl', id: '3827785' },
+        { handle: 'cd', id: '6104421' },
+      ],
+    };
+
     // Check if we already have unexpired data
-    this.music_library_data = getLocalStorageWithExpiry('music_library_data') || null;
-
-    // If no unexpired data, make new request(s)
-    if (!this.music_library_data) {
-      // Hardcoded to avoid having to login every time and to get data specific to this profile.
-      // NOTE: Without login, only public collections and folders are accessible.
-      this.music_library_data = {
-        user_name: 'sojournaut',
-        folders: [
-          { handle: 'vinyl', id: '3827785' },
-          { handle: 'cd', id: '6104421' },
-        ],
-      };
-      for (const folder of this.music_library_data.folders) {
-        this._getFolderContents(this.music_library_data.user_name, folder.id);
-      }
+    if (window.localStorage.getItem('music_library_data')) {
+      this.music_library_data = JSON.parse(getLocalStorageWithExpiry('music_library_data'));
+      this.data_ready = true;
+      console.log("Data loaded from storage");
+      console.log(this.music_library_data)
+    } else {
+      this._getFolderContents();
     }
-
-    console.log(this.music_library_data)
   }
 
   connectedCallback() {
@@ -40,53 +49,54 @@ class MusicGrid extends LitElement {
     super.disconnectedCallback();
   }
 
-  async _getFolderContents(user, folderId) {
+  async _getFolderContents() {
     let firstPage;
+    let firstPageData;
     let nextPage;
+    let nextPageData;
     let folderContents = [];
+    const user = this.music_library_data.user_name;
 
-    // Get first page of results
-    await fetch(
-      `https://api.discogs.com/users/${user}/collection/folders/${folderId}/releases?page=1&per_page=100&sort=artist`
-    ).then((response) => {
-      if (response.ok) {
-        return response.json();
-      }
-    })
-    .then((data) => {
-      firstPage = data;
-    })
-    .catch(error => {
-      console.error('Error fetching data:', error);
-    });
-    folderContents = this._mapItemData(firstPage);
+    for (const [index, folder] of this.music_library_data.folders.entries()) {
+      // Get first page of results
+      try {
+        firstPageData = await fetch(
+          `https://api.discogs.com/users/${user}/collection/folders/${folder.id}/releases?page=1&per_page=100&sort=artist`
+        );
 
-    // Get subsequent pages
-    for (let page = 2; page <= firstPage.pagination.pages; page++) {
-      await fetch(
-        `https://api.discogs.com/users/${this.music_library_data.user_name}/collection/folders/${folderId}/releases?page=${page}&per_page=100&sort=artist`
-      ).then((response) => {
-        if (response.ok) {
-          return response.json();
+        if (firstPageData) {
+          firstPage = await firstPageData.json();
+          folderContents = this._mapItemData(firstPage);
+
+          // Get subsequent pages
+          for (let page = 2; page <= firstPage.pagination.pages; page++) {
+            nextPageData = await fetch(
+              `https://api.discogs.com/users/${this.music_library_data.user_name}/collection/folders/${folder.id}/releases?page=${page}&per_page=100&sort=artist`
+            );
+            if (nextPageData) {
+              nextPage = await nextPageData.json();
+              folderContents = [...folderContents, ...this._mapItemData(nextPage)];
+            }
+          }
+
+          this.music_library_data.folders[index].contents = folderContents;
+
+          if (index === this.music_library_data.folders.length - 1) {
+            this.data_ready = true;
+            console.log("Data loaded from API");
+            console.log(this.music_library_data)
+            // Store data in localStorage with 14d expiry
+            setLocalStorageWithExpiry(
+              'music_library_data',
+              JSON.stringify(this.music_library_data),
+              1209600000
+            );
+          }
         }
-      })
-      .then((data) => {
-        nextPage = this._mapItemData(data);
-      })
-      .catch(error => {
+      } catch(error) {
         console.error('Error fetching data:', error);
-      });
-      folderContents = [...folderContents, ...nextPage];
+      }
     }
-
-    const folderToUpdate = this.music_library_data.folders.find(
-      (folder) => folder.id === folderId
-    );
-    const indexToUpdate = this.music_library_data.folders.indexOf(folderToUpdate);
-    this.music_library_data.folders[indexToUpdate].contents = folderContents;
-
-    // Store data in localStorage with 14d expiry
-    setLocalStorageWithExpiry('music_library_data', this.music_library_data, 1209600000)
   }
 
   _mapItemData(data) {
@@ -107,14 +117,10 @@ class MusicGrid extends LitElement {
     });
   }
 
-  _listArtists(folderId) {
+  _listArtists(folder) {
     let artists = [];
-    for (const folder of this.music_library_data.folders) {
-      if (folder.id === folderId) {
-        for (const record of folder.contents) {
-          artists.push(record.artist);
-        }
-      }
+    for (const record of folder.contents) {
+      artists.push(record.artist);
     }
     return [...new Set(artists)];
   }
@@ -122,29 +128,43 @@ class MusicGrid extends LitElement {
   render() {
     return html`
       <div>
-        ${repeat(
-          this.music_library_data.folders,
-          folder => folder.id,
-          folder => html`
-            <h2>${folder.handle}</h2>
+        ${when(
+          this.data_ready,
+          () => html`
             ${repeat(
-              this._listArtists(folder.id),
-              artist => artist,
-              artist => html`
-                <h3>${artist}</h3>
-                <ul>
-                  ${repeat(
-                    folder.contents.filter(
-                      item => item.artist === artist
-                    ),
-                    item => item.id,
-                    item => html`
-                      <li>${item.title}</li>
-                    `
-                  )}
-                </ul>
+              this.music_library_data.folders,
+              folder => folder.id,
+              folder => html`
+                <h2>${folder.handle}</h2>
+                ${when(
+                  folder.contents?.length,
+                  () => html`
+                    ${repeat(
+                      this._listArtists(folder),
+                      artist => artist,
+                      artist => html`
+                        <h3>${artist}</h3>
+                        <ul>
+                          ${repeat(
+                            folder.contents.filter(
+                              item => item.artist === artist
+                            ),
+                            item => item.id,
+                            item => html`
+                              <li>${item.title}</li>
+                            `
+                          )}
+                        </ul>
+                      `
+                    )}
+                  `,
+                  () => nothing
+                )}
               `
             )}
+          `,
+          () => html`
+            <div>LOADING ...</div>
           `
         )}
       </div>
