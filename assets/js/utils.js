@@ -29,7 +29,7 @@ export const setLocalStorageWithExpiry = (key, value, ttl) => {
 
 export const getLocalStorageWithExpiry = (key) => {
   const itemStr = localStorage.getItem(key);
-  
+
   // if the item doesn't exist, return null
   if (!itemStr) return null;
 

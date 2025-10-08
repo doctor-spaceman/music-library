@@ -92,15 +92,17 @@ class MusicGrid extends LitElement {
   _mapItemData(data) {
     return data?.releases?.map((release) => {
       return {
+        artist: release.basic_information.artists[0].name,
+        date_added: release.date_added,
+        genres: release.basic_information.genres,
         id: release.id,
-        image_thumbnail: release.basic_information.thumb,
         image_cover: release.basic_information.cover_image,
+        image_thumbnail: release.basic_information.thumb,
+        rating: release.rating,
+        styles: release.basic_information.styles,
         title: release.basic_information.title,
         year: release.basic_information.year,
         year_added: release.date_added.split('-')[0],
-        artist: release.basic_information.artists[0].name,
-        genres: release.basic_information.genres,
-        styles: release.basic_information.styles,
       }
     });
   }
@@ -111,13 +113,22 @@ class MusicGrid extends LitElement {
         ${repeat(
           this.music_library_data.folders,
           (folder) => folder.id,
-          (folder, index) => html`
+          (folder) => html`
             <h2>${folder.handle}</h2>
             ${repeat(
               folder.contents,
-              (item) => item.id,
-              item => html`
-                <li>${item.title}</li>
+              (record) => record.id,
+              (record) => html`
+                <h3>${record.artist}</h3>
+                <ul>
+                  ${repeat(
+                    folder.contents.filter(item => item.artist === record.artist),
+                    (item) => item.id,
+                    (item) => html`
+                      <li>${item.title}</li>
+                    `
+                  )}
+                </ul>
               `
             )}
           `
