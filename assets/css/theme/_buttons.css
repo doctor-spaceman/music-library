@@ -1,0 +1,6 @@
+a {
+  color: var(--color-teal);
+}
+a:hover, a:focus {
+  color:var(--color-green);
+}
