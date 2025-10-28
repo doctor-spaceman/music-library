@@ -14,7 +14,7 @@ class MusicCard extends LitElement {
 
   render() {
     return html`
-      <div class="record">
+      <li class="record">
         <img
           src="${this.record.image_cover}"
           loading="lazy"
@@ -24,13 +24,13 @@ class MusicCard extends LitElement {
         <p class="record__artist">${this.record.artist}</p>
         <p class="record__release-year">${this.record.year}</p>
         <p class="record__genres">${this.record.genres.join(', ')}</p>
-      </div>
+      </li>
     `
   }
 
   static styles = [
     css`
-      .record {
+      :host {
         background-color: var(--color-light-primary);
         border: 1px solid var(--color-light-gray);
         box-shadow: 
@@ -44,8 +44,18 @@ class MusicCard extends LitElement {
           4px 3px 0 var(--color-dark-primary),
           4px 5px 0 var(--color-dark-primary),
           5px 4px 0 var(--color-dark-primary);
-        height: 100%;
+      }
+      .record {
+        flex: 0 0 auto;
+        width: 120px;
         padding: var(--spacing-2);
+
+        @media screen and (min-width: 566px) {
+          width: 140px;
+        }
+        @media screen and (min-width: 768px) {
+          width: 200px;
+        }
       }
       .record__thumbnail {
         aspect-ratio: 1;

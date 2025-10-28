@@ -1,9 +1,10 @@
-import { LitElement, css, html, nothing, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
+import { LitElement, createRef, css, html, nothing, ref, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
 import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/tab/tab.js'
 import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/tab-group/tab-group.js'
 import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/tab-panel/tab-panel.js'
+import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/input/input.js'
 import { structure, theme, typography } from '../assets/js/styles.js';
-import { isMobile, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
+import { debounce, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
 
 class MusicGrid extends LitElement {
   static properties = {
@@ -17,6 +18,11 @@ class MusicGrid extends LitElement {
       attribute: false,
       state: true
     },
+    selected_folder: {
+      type: Object,
+      attribute: false,
+      state: true
+    }
   }
 
   constructor() {
@@ -46,6 +52,9 @@ class MusicGrid extends LitElement {
     } else {
       this._getFolderContents();
     }
+
+    this.original_folder = this.music_library_data.folders[0];
+    this.selected_folder = this.music_library_data.folders[0];
   }
 
   connectedCallback() {
@@ -73,7 +82,6 @@ class MusicGrid extends LitElement {
 
         if (firstPageData) {
           firstPage = await firstPageData.json();
-          console.log(firstPage);
           folderContents = this._mapItemData(firstPage);
 
           // Get subsequent pages
@@ -117,6 +125,12 @@ class MusicGrid extends LitElement {
       } else {
         artist = artist;
       }
+      if (artist.endsWith(')')) {
+        artist = artist.split('(')[0];
+      }
+      if (artist.startsWith('The ')) {
+        artist = `${artist.replace('The ', '')}, The`;
+      }
 
       return {
         artist: artist,
@@ -134,7 +148,7 @@ class MusicGrid extends LitElement {
     });
   }
 
-  _listArtists(folder) {
+  _sortByArtist(folder) {
     let artists = [];
     for (const record of folder.contents) {
       artists.push(record.artist);
@@ -145,33 +159,48 @@ class MusicGrid extends LitElement {
     return [...new Set(artists)];
   }
 
-  _renderList(index) {
+  _searchList = debounce((query) => {
+    console.log('Searched for: ', query);
+    this.selected_folder = this.original_folder
+    this.original_folder = structuredClone(this.selected_folder);
+    const filteredContents = this.selected_folder.contents.filter(
+      (record) => record.artist.toLowerCase().includes(query) || record.title.toLowerCase().includes(query)
+    );
+    this.selected_folder = { ...this.selected_folder, contents: filteredContents };
+    console.log(this.selected_folder.contents)
+  }, 800)
+
+  _renderRecent(index) {
     const selectedFolder = this.music_library_data.folders[index];
+    const selectedFolderContents = selectedFolder?.contents?.filter(
+      record => record.year_added > this.currentDate.getFullYear() - 1
+    )?.sort((a, b) => {
+      const aDate = new Date(a.date_added);
+      const bDate = new Date(b.date_added);
+      return bDate - aDate;
+    });
+
     return html`
       <section>
-        <h2>All Albums</h2>
+        <h2>Recent Additions</h2>
         ${when(
-          this.data_ready && selectedFolder?.contents?.length,
+          this.data_ready,
           () => html`
-            <ul class="full-list flex">
-              ${repeat(
-                this._listArtists(selectedFolder),
-                artist => artist,
-                artist => html`
+            ${when(
+              selectedFolder?.contents?.length,
+              () => html`
+                <ul class="list list--horizontal flex">
                   ${repeat(
-                    selectedFolder.contents.filter(
-                      record => record.artist === artist
-                    ).sort((a, b) => a.year - b.year),
+                    selectedFolderContents,
                     record => record.id,
-                    record => html`
-                      <li>
-                        <music-card .record=${record}></music-card>
-                      </li>
-                    `
+                    record => html`<music-card .record=${record}></music-card>`
                   )}
-                `
-              )}
-            </ul>
+                </ul>
+              `,
+              () => html`
+                <div>There are no records in this folder.</div>
+              `
+            )}
           `,
           () => html`
             <div>LOADING ...</div>
@@ -181,30 +210,43 @@ class MusicGrid extends LitElement {
     `;
   }
 
-  _renderRecent(index) {
-    const selectedFolder = this.music_library_data.folders[index];
+  _renderList() {
     return html`
       <section>
-        <h2>Recently Added</h2>
+        <h2>All Albums</h2>
         ${when(
-          this.data_ready && selectedFolder?.contents?.length,
+          this.data_ready,
           () => html`
-            <ul class="recently-added flex">
-              ${repeat(
-                selectedFolder.contents.filter(
-                  record => record.year_added > this.currentDate.getFullYear() - 1
-                ).sort((a, b) => {
-                  const aDate = new Date(a.date_added);
-                  const bDate = new Date(b.date_added);
-                  return bDate - aDate
-                }),
-                record => record.id,
-                record => html`
-                  <li>
-                    <music-card .record=${record}></music-card>
-                  </li>`
-              )}
-            </ul>
+            <sl-input
+              label="Search by artist or album title"
+              clearable
+              pill
+              @sl-input=${(e) => this._searchList(e.target.value)}
+              @sl-clear=${() => this.selected_folder = this.original_folder}
+            ></sl-input>
+            ${when(
+              this.selected_folder?.contents?.length,
+              () => html`
+                <ul class="list list--grid flex">
+                  ${repeat(
+                    this._sortByArtist(this.selected_folder),
+                    artist => artist,
+                    artist => html`
+                      ${repeat(
+                        this.selected_folder.contents.filter(
+                          record => record.artist === artist
+                        ).sort((a, b) => a.year - b.year),
+                        record => record.id,
+                        record => html`<music-card .record=${record}></music-card>`
+                      )}
+                    `
+                  )}
+                </ul>
+              `,
+              () => html`
+                <div>There are no matching records.</div>
+              `
+            )}
           `,
           () => html`
             <div>LOADING ...</div>
@@ -225,10 +267,14 @@ class MusicGrid extends LitElement {
               folder => folder.id,
               (folder, index) => html`
                 <sl-tab
-                  ?active=${index === 0}
+                  slot="nav"
                   panel="${folder.handle}"
+                  @click=${() => {
+                    this.original_folder = folder
+                    this.selected_folder = folder
+                  }}
                 >
-                  ${folder.handle}
+                  ${folder.handle.toUpperCase()}
                 </sl-tab>
               `
             )}
@@ -237,11 +283,10 @@ class MusicGrid extends LitElement {
               folder => folder.id,
               (folder, index) => html`
                 <sl-tab-panel
-                  ?active=${index === 0}
                   name="${folder.handle}"
                 >
                   ${this._renderRecent(index)}
-                  ${this._renderList(index)}
+                  ${this._renderList()}
                 </sl-tab-panel>
               `
             )}
@@ -249,7 +294,7 @@ class MusicGrid extends LitElement {
         `,
         () => html`
           ${this._renderRecent(0)}
-          ${this._renderList(0)}
+          ${this._renderList()}
         `
       )}
     `;
@@ -263,32 +308,50 @@ class MusicGrid extends LitElement {
       section {
         padding-bottom: var(--spacing-20);
       }
-      .recently-added,
-      .full-list {
+
+      .list {
         gap: var(--spacing-4);
         list-style: none;
         margin: 0;
         padding: var(--spacing-6) 0;
-
-        li {
-          flex: 0 0 auto;
-          width: 140px;
-
-          @media screen and (min-width: 768px) {
-            width: 200px;
-          }
-        }
       }
       
-      .recently-added {
+      .list--horizontal { 
         flex-wrap: nowrap;
         overflow-x: auto;
       }
       
-      .full-list {
+      .list--grid {
         li {
           margin-bottom: var(--spacing-6);
         }
+      }
+
+      sl-tab-group {
+        --track-width: 0px;
+      }
+      sl-tab-group::part(active-tab-indicator) {
+        display: none;
+      }
+      sl-tab-group::part(tabs) {
+        repeat(2, 1fr);
+      }
+      sl-tab {
+        border: 1px solid var(--color-dark-primary);
+        border-radius: var(--spacing-2) var(--spacing-2) 0px 0px;
+        cursor: pointer;
+        min-width: 140px;
+      }
+      sl-tab[active] {
+        border-bottom: none;
+      }
+      sl-tab:not([active]) {
+        border-top: none;
+        border-right: none;
+        border-left: none;
+      }
+      sl-tab-panel {
+        padding: 0 var(--spacing-6);
       }
     `
   ];
