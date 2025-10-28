@@ -187,7 +187,7 @@ class MusicGrid extends LitElement {
           this.data_ready,
           () => html`
             ${when(
-              selectedFolder?.contents?.length,
+              selectedFolderContents?.length,
               () => html`
                 <ul class="list list--horizontal flex">
                   ${repeat(
@@ -198,12 +198,15 @@ class MusicGrid extends LitElement {
                 </ul>
               `,
               () => html`
-                <div>There are no records in this folder.</div>
+                <div>No items have been added in the last 12 months.</div>
               `
             )}
           `,
           () => html`
-            <div>LOADING ...</div>
+            <div>
+              <img width="80" src="./assets/img/record-player-pixel-art.gif" alt="Graphic of a turntable with a spinning record" />
+              <p>LOADING ...</p>
+            </div>
           `
         )}
       </section>
@@ -249,7 +252,10 @@ class MusicGrid extends LitElement {
             )}
           `,
           () => html`
-            <div>LOADING ...</div>
+            <div class="flex flex-column">
+              <img width="80" src="./assets/img/record-player-pixel-art.gif" alt="Graphic of a turntable with a spinning record" />
+              <p>LOADING ...</p>
+            </div>
           `
         )}
       </section>
