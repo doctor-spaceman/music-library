@@ -23,7 +23,6 @@ class MusicCard extends LitElement {
         <h3 class="record__title">${this.record.title}</h3>
         <p class="record__artist">${this.record.artist}</p>
         <p class="record__release-year">${this.record.year}</p>
-        <p class="record__genres">${this.record.genres.join(', ')}</p>
       </li>
     `
   }
@@ -71,10 +70,9 @@ class MusicCard extends LitElement {
         margin: 0;
         margin-bottom: var(--spacing);
       }
-      .record__genres {
+      .record__release-year {
         color: var(--color-light-gray);
         font: var(--font-p-small);
-        margin-bottom: 0;
       }
     `
   ];

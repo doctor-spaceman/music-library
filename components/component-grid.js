@@ -1,4 +1,5 @@
 import { LitElement, createRef, css, html, nothing, ref, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
+import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/button/button.js'
 import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/tab/tab.js'
 import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/tab-group/tab-group.js'
 import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/tab-panel/tab-panel.js'
@@ -160,15 +161,31 @@ class MusicGrid extends LitElement {
   }
 
   _searchList = debounce((query) => {
-    console.log('Searched for: ', query);
-    this.selected_folder = this.original_folder
+    this._resetList();
     this.original_folder = structuredClone(this.selected_folder);
     const filteredContents = this.selected_folder.contents.filter(
       (record) => record.artist.toLowerCase().includes(query) || record.title.toLowerCase().includes(query)
     );
     this.selected_folder = { ...this.selected_folder, contents: filteredContents };
-    console.log(this.selected_folder.contents)
   }, 800)
+
+  _pickRandom() {
+    this._resetList();
+    const randomResult = this.selected_folder.contents[
+      Math.floor(
+        Math.random() * this.selected_folder.contents.length
+      )
+    ];
+    this.selected_folder = { ...this.selected_folder, contents: [randomResult] };
+  }
+
+  _resetList() {
+    this.selected_folder = this.original_folder;
+  }
+
+  _resetInput(event) {
+    event.target.closest('.list-actions').querySelector('.list-actions__search').value = '';
+  }
 
   _renderRecent(index) {
     const selectedFolder = this.music_library_data.folders[index];
@@ -213,6 +230,36 @@ class MusicGrid extends LitElement {
     `;
   }
 
+  _renderListActions() {
+    return html`
+      <div class="list-actions flex">
+        <sl-input
+          class="list-actions__search"
+          label="Search by artist or album title"
+          clearable
+          pill
+          @sl-input=${(e) => this._searchList(e.target.value)}
+          @sl-clear=${() => this.selected_folder = this.original_folder}
+        ></sl-input>
+        <sl-button
+          class="list-actions__random"
+          @click=${this._pickRandom}
+        >
+          Roll them dice
+        </sl-button>
+        <sl-button
+          class="list-actions__reset"
+          @click=${(e) => {
+            this._resetList()
+            this._resetInput(e)
+          }}
+        >
+          Reset
+        </sl-button>
+      </div>
+    `
+  }
+
   _renderList() {
     return html`
       <section>
@@ -220,13 +267,7 @@ class MusicGrid extends LitElement {
         ${when(
           this.data_ready,
           () => html`
-            <sl-input
-              label="Search by artist or album title"
-              clearable
-              pill
-              @sl-input=${(e) => this._searchList(e.target.value)}
-              @sl-clear=${() => this.selected_folder = this.original_folder}
-            ></sl-input>
+            ${this._renderListActions()}
             ${when(
               this.selected_folder?.contents?.length,
               () => html`
@@ -313,6 +354,16 @@ class MusicGrid extends LitElement {
     css`
       section {
         padding-bottom: var(--spacing-20);
+      }
+
+      .list-actions {
+        align-items: flex-end;
+        gap: var(--spacing-6);
+        width: 100%;
+      }
+
+      .list-actions__search {
+        flex: 1 1 auto;
       }
 
       .list {
