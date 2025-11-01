@@ -13,16 +13,16 @@
   /*---Dark Mode Colors---*/
 
   /*---Typography---*/  
-  --font-primary: 'Vollkorn', Helvetica, sans-serif;
-  --font-heading: 'Rubik', Helvetica, sans-serif;
+  --font-primary: 'Monda', Helvetica, sans-serif;
+  --font-heading: 'Bungee Shade', Helvetica, sans-serif;
   --font-p: 14px var(--font-primary);
   --font-p-small: 12px var(--font-primary);
   --font-p-xsmall: 10px var(--font-primary);
   --font-p-large: 16px var(--font-primary);
-  --font-h1: 26px var(--font-heading);
-  --font-h2: 22px var(--font-heading);
-  --font-h3: 18px var(--font-heading);
-  --font-h4: 14px var(--font-heading);
+  --font-h1: 48px/48px var(--font-heading);
+  --font-h2: 34px/34px var(--font-heading);
+  --font-h3: 20px/22px var(--font-primary);
+  --font-h4: 16px/18px var(--font-primary);
 
   /*---Spacing---*/
   --spacing: 4px;
@@ -38,13 +38,13 @@
   --spacing-20: calc(var(--spacing) * 20);
 
   @media screen and (min-width: 768px) {
-    --font-p: 16px var(--font-primary);
-    --font-p-small: 14px var(--font-primary);
-    --font-p-xsmall: 12px var(--font-primary);
-    --font-p-large: 18px var(--font-primary);
-    --font-h1: 32px var(--font-heading);
-    --font-h2: 28px var(--font-heading);
-    --font-h3: 20px var(--font-heading);
-    --font-h4: 18px var(--font-heading);
+    --font-p: 14px var(--font-primary);
+    --font-p-small: 12px var(--font-primary);
+    --font-p-xsmall: 10px var(--font-primary);
+    --font-p-large: 16px var(--font-primary);
+    --font-h1: 48px/48px var(--font-heading);
+    --font-h2: 34px/34px var(--font-heading);
+    --font-h3: 20px/22px var(--font-primary);
+    --font-h4: 16px/18px var(--font-primary);
   }
 }

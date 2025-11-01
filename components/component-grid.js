@@ -1,4 +1,4 @@
-import { LitElement, createRef, css, html, nothing, ref, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
+import { LitElement, css, html, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
 import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/button/button.js'
 import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/tab/tab.js'
 import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/tab-group/tab-group.js'
@@ -210,7 +210,7 @@ class MusicGrid extends LitElement {
                   ${repeat(
                     selectedFolderContents,
                     record => record.id,
-                    record => html`<music-card .record=${record}></music-card>`
+                    record => html`<li><music-card .record=${record}></music-card></li>`
                   )}
                 </ul>
               `,
@@ -220,7 +220,7 @@ class MusicGrid extends LitElement {
             )}
           `,
           () => html`
-            <div>
+            <div class="loading">
               <img width="80" src="./assets/img/record-player-pixel-art.gif" alt="Graphic of a turntable with a spinning record" />
               <p>LOADING ...</p>
             </div>
@@ -232,7 +232,7 @@ class MusicGrid extends LitElement {
 
   _renderListActions() {
     return html`
-      <div class="list-actions flex">
+      <div class="list-actions">
         <sl-input
           class="list-actions__search"
           label="Search by artist or album title"
@@ -241,21 +241,23 @@ class MusicGrid extends LitElement {
           @sl-input=${(e) => this._searchList(e.target.value)}
           @sl-clear=${() => this.selected_folder = this.original_folder}
         ></sl-input>
-        <sl-button
-          class="list-actions__random"
-          @click=${this._pickRandom}
-        >
-          Roll them dice
-        </sl-button>
-        <sl-button
-          class="list-actions__reset"
-          @click=${(e) => {
-            this._resetList()
-            this._resetInput(e)
-          }}
-        >
-          Reset
-        </sl-button>
+        <div class="flex">
+          <sl-button
+            class="list-actions__random"
+            @click=${this._pickRandom}
+          >
+            Roll them dice
+          </sl-button>
+          <sl-button
+            class="list-actions__reset"
+            @click=${(e) => {
+              this._resetList()
+              this._resetInput(e)
+            }}
+          >
+            Reset
+          </sl-button>
+        </div>
       </div>
     `
   }
@@ -281,7 +283,7 @@ class MusicGrid extends LitElement {
                           record => record.artist === artist
                         ).sort((a, b) => a.year - b.year),
                         record => record.id,
-                        record => html`<music-card .record=${record}></music-card>`
+                        record => html`<li><music-card .record=${record}></music-card></li>`
                       )}
                     `
                   )}
@@ -293,7 +295,7 @@ class MusicGrid extends LitElement {
             )}
           `,
           () => html`
-            <div class="flex flex-column">
+            <div class="loading">
               <img width="80" src="./assets/img/record-player-pixel-art.gif" alt="Graphic of a turntable with a spinning record" />
               <p>LOADING ...</p>
             </div>
@@ -357,13 +359,30 @@ class MusicGrid extends LitElement {
       }
 
       .list-actions {
-        align-items: flex-end;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
         gap: var(--spacing-6);
+        max-width: 768px;
         width: 100%;
+
+        @media screen and (min-width: 600px) {
+          flex-direction: row;
+          align-items: flex-end;
+        }
       }
 
       .list-actions__search {
         flex: 1 1 auto;
+        width: 100%;
+
+        @media screen and (min-width: 600px) {
+          width: unset;
+        }
+      }
+
+      .list-actions__random {
+        margin-right: var(--spacing-3);
       }
 
       .list {
@@ -394,21 +413,30 @@ class MusicGrid extends LitElement {
         repeat(2, 1fr);
       }
       sl-tab {
-        border: 1px solid var(--color-dark-primary);
+        background-color: var(--color-sand);
         border-radius: var(--spacing-2) var(--spacing-2) 0px 0px;
         cursor: pointer;
         min-width: 140px;
       }
-      sl-tab[active] {
-        border-bottom: none;
+      sl-tab::part(base) {
+        font: var(--font-h4);
+        letter-spacing: 2px;
       }
-      sl-tab:not([active]) {
-        border-top: none;
-        border-right: none;
-        border-left: none;
+      sl-tab[id="sl-tab-1"] {
+        background-color: var(--color-sand);
+      }
+      sl-tab[id="sl-tab-2"] {
+        background-color: var(--color-scrub);
       }
       sl-tab-panel {
+        background-color: var(--color-sand);
         padding: 0 var(--spacing-6);
+      }
+      sl-tab-panel[id="sl-tab-panel-1"] {
+        background-color: var(--color-sand);
+      }
+      sl-tab-panel[id="sl-tab-panel-2"] {
+        background-color: var(--color-scrub);
       }
     `
   ];
