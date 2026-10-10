@@ -102,11 +102,11 @@ class MusicGrid extends LitElement {
             this.data_ready = true;
             console.log("Data loaded from API");
             console.log(this.music_library_data)
-            // Store data in localStorage with 14d expiry
+            // Store data in localStorage with 7d expiry
             setLocalStorageWithExpiry(
               'music_library_data',
               JSON.stringify(this.music_library_data),
-              1209600000
+              604800000
             );
           }
         }
@@ -140,7 +140,7 @@ class MusicGrid extends LitElement {
         id: release.id,
         image_cover: release.basic_information.cover_image,
         image_thumbnail: release.basic_information.thumb,
-        rating: release.rating,
+        rating: release.rating, // returns 0 if not rated
         styles: release.basic_information.styles,
         title: release.basic_information.title,
         year: release.basic_information.year,
@@ -308,7 +308,7 @@ class MusicGrid extends LitElement {
   render() {
     return html`
       ${when(
-        this.music_library_data.folders.length > 1,
+        this.music_library_data?.folders?.length > 1,
         () => html`
           <sl-tab-group>
             ${repeat(
