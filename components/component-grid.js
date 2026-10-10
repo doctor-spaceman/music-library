@@ -1,9 +1,9 @@
 import { LitElement, css, html, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
-import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/button/button.js'
-import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/tab/tab.js'
-import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/tab-group/tab-group.js'
-import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/tab-panel/tab-panel.js'
-import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/components/input/input.js'
+import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/button/button.js';
+import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/input/input.js';
+import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/tab/tab.js';
+import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/tab-group/tab-group.js';
+import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/tab-panel/tab-panel.js';
 import { structure, theme, typography } from '../assets/js/styles.js';
 import { debounce, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
 
@@ -43,19 +43,19 @@ class MusicGrid extends LitElement {
     this.currentDate = new Date();
 
     // Check if we already have unexpired data
-    if (window.localStorage.getItem('music_library_data')) {
-      this.music_library_data = JSON.parse(getLocalStorageWithExpiry('music_library_data'));
-      if (this.music_library_data) {
-        this.data_ready = true;
-        console.log("Data loaded from storage");
-        console.log(this.music_library_data)
+    const musicLibraryData = getLocalStorageWithExpiry('music_library_data');
+    if (Object.keys(musicLibraryData)?.length) {
+      this.data_ready = true;
+      this.music_library_data = musicLibraryData;
+      console.log("Data loaded from storage");
+      if (Object.keys(this.music_library_data).length) {
+        console.log(this.music_library_data.folders);
+        this.original_folder = this.music_library_data.folders[0];
+        this.selected_folder = this.music_library_data.folders[0];
       }
     } else {
       this._getFolderContents();
     }
-
-    this.original_folder = this.music_library_data.folders[0];
-    this.selected_folder = this.music_library_data.folders[0];
   }
 
   connectedCallback() {
@@ -163,8 +163,14 @@ class MusicGrid extends LitElement {
   _searchList = debounce((query) => {
     this._resetList();
     this.original_folder = structuredClone(this.selected_folder);
+    
+    const queryLowerCased = query.toLowerCase();
     const filteredContents = this.selected_folder.contents.filter(
-      (record) => record.artist.toLowerCase().includes(query) || record.title.toLowerCase().includes(query)
+      (record) => {
+        const artistLowerCased = record?.artist?.toLowerCase();
+        const titleLowerCased = record?.title?.toLowerCase();
+        return artistLowerCased.includes(queryLowerCased) || titleLowerCased.includes(queryLowerCased);
+      }
     );
     this.selected_folder = { ...this.selected_folder, contents: filteredContents };
   }, 800)
@@ -233,22 +239,22 @@ class MusicGrid extends LitElement {
   _renderListActions() {
     return html`
       <div class="list-actions">
-        <sl-input
+        <wa-input
           class="list-actions__search"
           label="Search by artist or album title"
           clearable
           pill
-          @sl-input=${(e) => this._searchList(e.target.value)}
-          @sl-clear=${() => this.selected_folder = this.original_folder}
-        ></sl-input>
+          @input=${(e) => this._searchList(e.target.value)}
+          @wa-clear=${() => this.selected_folder = this.original_folder}
+        ></wa-input>
         <div class="flex">
-          <sl-button
+          <wa-button
             class="list-actions__random"
             @click=${this._pickRandom}
           >
             Roll them dice
-          </sl-button>
-          <sl-button
+          </wa-button>
+          <wa-button
             class="list-actions__reset"
             @click=${(e) => {
               this._resetList()
@@ -256,7 +262,7 @@ class MusicGrid extends LitElement {
             }}
           >
             Reset
-          </sl-button>
+          </wa-button>
         </div>
       </div>
     `
@@ -310,12 +316,12 @@ class MusicGrid extends LitElement {
       ${when(
         this.music_library_data?.folders?.length > 1,
         () => html`
-          <sl-tab-group>
+          <wa-tab-group>
             ${repeat(
               this.music_library_data.folders,
               folder => folder.id,
               (folder, index) => html`
-                <sl-tab
+                <wa-tab
                   slot="nav"
                   panel="${folder.handle}"
                   @click=${() => {
@@ -324,22 +330,22 @@ class MusicGrid extends LitElement {
                   }}
                 >
                   ${folder.handle.toUpperCase()}
-                </sl-tab>
+                </wa-tab>
               `
             )}
             ${repeat(
               this.music_library_data.folders,
               folder => folder.id,
               (folder, index) => html`
-                <sl-tab-panel
+                <wa-tab-panel
                   name="${folder.handle}"
                 >
                   ${this._renderRecent(index)}
                   ${this._renderList()}
-                </sl-tab-panel>
+                </wa-tab-panel>
               `
             )}
-          </sl-tab-group>
+          </wa-tab-group>
         `,
         () => html`
           ${this._renderRecent(0)}
@@ -403,39 +409,39 @@ class MusicGrid extends LitElement {
         }
       }
 
-      sl-tab-group {
+      wa-tab-group {
         --track-width: 0px;
       }
-      sl-tab-group::part(active-tab-indicator) {
+      wa-tab-group::part(active-tab-indicator) {
         display: none;
       }
-      sl-tab-group::part(tabs) {
+      wa-tab-group::part(tabs) {
         repeat(2, 1fr);
       }
-      sl-tab {
+      wa-tab {
         background-color: var(--color-sand);
         border-radius: var(--spacing-2) var(--spacing-2) 0px 0px;
         cursor: pointer;
         min-width: 140px;
       }
-      sl-tab::part(base) {
+      wa-tab::part(base) {
         font: var(--font-h4);
         letter-spacing: 2px;
       }
-      sl-tab[id="sl-tab-1"] {
+      wa-tab[id="wa-tab-1"] {
         background-color: var(--color-sand);
       }
-      sl-tab[id="sl-tab-2"] {
+      wa-tab[id="wa-tab-2"] {
         background-color: var(--color-scrub);
       }
-      sl-tab-panel {
+      wa-tab-panel {
         background-color: var(--color-sand);
         padding: 0 var(--spacing-6);
       }
-      sl-tab-panel[id="sl-tab-panel-1"] {
+      wa-tab-panel[id="wa-tab-panel-1"] {
         background-color: var(--color-sand);
       }
-      sl-tab-panel[id="sl-tab-panel-2"] {
+      wa-tab-panel[id="wa-tab-panel-2"] {
         background-color: var(--color-scrub);
       }
     `
