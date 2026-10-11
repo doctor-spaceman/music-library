@@ -10,7 +10,7 @@
     <script src="././components/component-filters.js" type="module"></script>
     <script src="././components/component-grid.js" type="module"></script>
     <script src="././components/component-card.js" type="module"></script>
-    <script src="././components/component-screen.js" type="module"></script>
+    <script src="././components/component-user-config.js" type="module"></script>
     <link type="text/css" rel="stylesheet" href="././assets/css/style.css"></link>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,11 +20,11 @@
   </head>
   <body>
     <a href="#mainContent" id="skipToContent" class="sr-only">Skip to content</a>
-    <header>
-      <div></div>
-      <music-filters></music-filters>
+    <header id="header">
+      <music-user-config></music-user-config>
     </header>
     <main id="main" class="flex flex-column flex-nowrap">
+      <music-filters></music-filters>
       <music-grid></music-grid>
       <music-info-screen></music-info-screen>
     </main>

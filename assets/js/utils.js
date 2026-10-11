@@ -33,15 +33,17 @@ export const formatTimestamp = (timestamp) => {
  * @param {string} value - The information to store (likely stringified JSON).
  * @param {number} ttl - The duration of validity in milliseconds.
  */
-export const setLocalStorageWithExpiry = (key, value, ttl) => {
+export const setLocalStorageWithExpiry = (key, value, ttl = 0) => {
   const now = new Date();
 
   // `item` is an object which contains the original value
   // as well as the time when it's supposed to expire
   const item = {
     value: value,
-    expiry: now.getTime() + ttl
   };
+  if (ttl > 0) {
+    item.expiry = now.getTime() + ttl;
+  }
   localStorage.setItem(key, JSON.stringify(item));
 }
 

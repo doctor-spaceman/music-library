@@ -1,6 +1,18 @@
 a {
   color: var(--color-teal);
 }
+
 a:hover, a:focus {
-  color:var(--color-green);
+  color: var(--color-green);
+}
+
+.button--simple,
+wa-button.button--simple::part(base) {
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--color-dark-primary);
+  font: var(--font-p-small);
+  height: unset;
+  padding: 0;
 }

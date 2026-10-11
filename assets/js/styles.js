@@ -75,3 +75,16 @@ export const utilities = css`
     border: 0;
   }
 `
+
+export const buttons = css`
+  .button--simple,
+  wa-button.button--simple::part(base) {
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    color: var(--color-dark-primary);
+    font: var(--font-p-small);
+    height: unset;
+    padding: 0;
+  }
+`

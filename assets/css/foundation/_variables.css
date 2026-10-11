@@ -1,4 +1,6 @@
 :root {
+  --size: 1rem;
+
   /*---Colors---*/
   --color-brand: #46483C;
   --color-dark-primary: #484848;
@@ -15,17 +17,17 @@
   /*---Typography---*/  
   --font-primary: 'Monda', Helvetica, sans-serif;
   --font-heading: 'Bungee Shade', Helvetica, sans-serif;
-  --font-p: 14px var(--font-primary);
-  --font-p-small: 12px var(--font-primary);
-  --font-p-xsmall: 10px var(--font-primary);
-  --font-p-large: 16px var(--font-primary);
-  --font-h1: 48px/48px var(--font-heading);
-  --font-h2: 34px/34px var(--font-heading);
-  --font-h3: 20px/22px var(--font-primary);
-  --font-h4: 16px/18px var(--font-primary);
+  --font-p: calc(var(--size) * .75) var(--font-primary);
+  --font-p-small: calc(var(--size) * .88) var(--font-primary);
+  --font-p-xsmall:  calc(var(--size) * .63) var(--font-primary);
+  --font-p-large: var(--size) var(--font-primary);
+  --font-h1: calc(var(--size) * 3)/calc(var(--size) * 3) var(--font-heading);
+  --font-h2: calc(var(--size) * 2.125)/calc(var(--size) * 2.125) var(--font-heading);
+  --font-h3: calc(var(--size) * 1.25)/calc(var(--size) * 1.375) var(--font-primary);
+  --font-h4: var(--size)/calc(var(--size) * 1.125) var(--font-primary);
 
   /*---Spacing---*/
-  --spacing: 4px;
+  --spacing: calc(var(--size) / 4);
   --spacing-2: calc(var(--spacing) * 2);
   --spacing-3: calc(var(--spacing) * 3);
   --spacing-4: calc(var(--spacing) * 4);
@@ -36,15 +38,4 @@
   --spacing-9: calc(var(--spacing) * 9);
   --spacing-10: calc(var(--spacing) * 10);
   --spacing-20: calc(var(--spacing) * 20);
-
-  @media screen and (min-width: 768px) {
-    --font-p: 14px var(--font-primary);
-    --font-p-small: 12px var(--font-primary);
-    --font-p-xsmall: 10px var(--font-primary);
-    --font-p-large: 16px var(--font-primary);
-    --font-h1: 48px/48px var(--font-heading);
-    --font-h2: 34px/34px var(--font-heading);
-    --font-h3: 20px/22px var(--font-primary);
-    --font-h4: 16px/18px var(--font-primary);
-  }
 }

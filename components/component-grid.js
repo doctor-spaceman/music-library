@@ -15,7 +15,7 @@ class MusicGrid extends LitElement {
       state: true
     },
     music_library_data: {
-      type: Array,
+      type: Object,
       attribute: false,
       state: true
     },
@@ -32,7 +32,10 @@ class MusicGrid extends LitElement {
     this.data_ready = false;
     // Hardcoded to avoid having to login every time and to get data specific to this profile.
     // NOTE: Without login, only public collections and folders are accessible.
-    // TODO: Add an input and button to switch profiles.
+    // TODO: Add an input and button to switch profiles.\
+    this.user = getLocalStorageWithExpiry('music_library_user');
+    console.log(this.user);
+    
     this.music_library_data = {
       user_name: 'sojournaut',
       folders: [
@@ -44,14 +47,18 @@ class MusicGrid extends LitElement {
 
     // Check if we already have unexpired data
     const musicLibraryData = getLocalStorageWithExpiry('music_library_data');
-    if (Object.keys(musicLibraryData)?.length) {
-      this.data_ready = true;
-      this.music_library_data = musicLibraryData;
-      console.log("Data loaded from storage");
-      if (Object.keys(this.music_library_data).length) {
-        console.log(this.music_library_data.folders);
-        this.original_folder = this.music_library_data.folders[0];
-        this.selected_folder = this.music_library_data.folders[0];
+    if (musicLibraryData) {
+      if (Object.keys(musicLibraryData)?.length) {
+        this.data_ready = true;
+        this.music_library_data = musicLibraryData;
+        console.log("Data loaded from storage");
+        if (Object.keys(this.music_library_data).length) {
+          console.log(this.music_library_data.folders);
+          this.original_folder = this.music_library_data.folders[0];
+          this.selected_folder = this.music_library_data.folders[0];
+        }
+      } else {
+        this._getFolderContents();
       }
     } else {
       this._getFolderContents();
@@ -64,6 +71,11 @@ class MusicGrid extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+  }
+
+  _clearGrid() {
+    this.data_ready = false;
+    this.music_library_data = {};
   }
 
   async _getFolderContents() {
