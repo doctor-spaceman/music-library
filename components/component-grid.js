@@ -1,4 +1,5 @@
 import { LitElement, css, html, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
+import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/accordion/accordion.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/button/button.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/input/input.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/tab/tab.js';
@@ -19,6 +20,11 @@ class MusicGrid extends LitElement {
       attribute: false,
       state: true
     },
+    music_library_user: {
+      type: String,
+      attribute: false,
+      state: true
+    },
     selected_folder: {
       type: Object,
       attribute: false,
@@ -30,39 +36,10 @@ class MusicGrid extends LitElement {
     super();
 
     this.data_ready = false;
-    // Hardcoded to avoid having to login every time and to get data specific to this profile.
-    // NOTE: Without login, only public collections and folders are accessible.
-    // TODO: Add an input and button to switch profiles.\
-    this.user = getLocalStorageWithExpiry('music_library_user');
-    console.log(this.user);
-    
     this.music_library_data = {
-      user_name: 'sojournaut',
-      folders: [
-        { handle: 'vinyl', id: '3827785' },
-        { handle: 'cd', id: '6104421' },
-      ],
-    };
-    this.currentDate = new Date();
-
-    // Check if we already have unexpired data
-    const musicLibraryData = getLocalStorageWithExpiry('music_library_data');
-    if (musicLibraryData) {
-      if (Object.keys(musicLibraryData)?.length) {
-        this.data_ready = true;
-        this.music_library_data = musicLibraryData;
-        console.log("Data loaded from storage");
-        if (Object.keys(this.music_library_data).length) {
-          console.log(this.music_library_data.folders);
-          this.original_folder = this.music_library_data.folders[0];
-          this.selected_folder = this.music_library_data.folders[0];
-        }
-      } else {
-        this._getFolderContents();
-      }
-    } else {
-      this._getFolderContents();
+      folders: [{ handle: 'all', id: '0' }]
     }
+    this.music_library_user = getLocalStorageWithExpiry('music_library_user');
   }
 
   connectedCallback() {
@@ -73,24 +50,60 @@ class MusicGrid extends LitElement {
     super.disconnectedCallback();
   }
 
-  _clearGrid() {
-    this.data_ready = false;
-    this.music_library_data = {};
+  updated(changedProperties) {
+    if (changedProperties.has('music_library_user')) {
+      console.log(`User: ${this.music_library_user}`);
+      if (this.music_library_user?.length) {
+        this._setupGrid();
+      } else {
+        this._clearGrid();
+      }
+    }
   }
 
-  async _getFolderContents() {
+  _setupGrid = async () => {
+    // TODO: Get everything in the collection (folder_id === 0), 
+    // and sort the results by "format" key
+
+    // Check if we already have unexpired data
+    this.currentDate = new Date();
+    const musicLibraryData = getLocalStorageWithExpiry('music_library_data');
+    if (!musicLibraryData) {
+      return
+    }
+
+    if (Object.keys(musicLibraryData)?.length) {
+      this.data_ready = true;
+      this.music_library_data = musicLibraryData;
+      console.log("Data loaded from storage");
+      if (Object.keys(this.music_library_data).length) {
+        console.log(this.music_library_data.folders);
+        this.original_folder = this.music_library_data.folders[0];
+        this.selected_folder = this.music_library_data.folders[0];
+      }
+    } else {
+      this._getFolderContents();
+    }
+  }
+
+  _clearGrid = () => {
+    this.data_ready = false;
+    window.localStorage?.removeItem('music_library_data');
+    window.localStorage?.removeItem('music_library_user');
+  }
+
+  _getFolderContents = async () => {
     let firstPage;
     let firstPageData;
     let nextPage;
     let nextPageData;
     let folderContents = [];
-    const user = this.music_library_data.user_name;
 
     for (const [index, folder] of this.music_library_data.folders.entries()) {
       // Get first page of results
       try {
         firstPageData = await fetch(
-          `https://api.discogs.com/users/${user}/collection/folders/${folder.id}/releases?page=1&per_page=100&sort=artist`
+          `https://api.discogs.com/users/${this.music_library_user}/collection/folders/0/releases?page=1&per_page=100&sort=artist`
         );
 
         if (firstPageData) {
@@ -100,7 +113,7 @@ class MusicGrid extends LitElement {
           // Get subsequent pages
           for (let page = 2; page <= firstPage.pagination.pages; page++) {
             nextPageData = await fetch(
-              `https://api.discogs.com/users/${this.music_library_data.user_name}/collection/folders/${folder.id}/releases?page=${page}&per_page=100&sort=artist`
+              `https://api.discogs.com/users/${this.music_library_user}/collection/folders/0/releases?page=${page}&per_page=100&sort=artist`
             );
             if (nextPageData) {
               nextPage = await nextPageData.json();
@@ -112,6 +125,8 @@ class MusicGrid extends LitElement {
 
           if (index === this.music_library_data.folders.length - 1) {
             this.data_ready = true;
+            this.original_folder = this.music_library_data.folders[0];
+            this.selected_folder = this.music_library_data.folders[0];
             console.log("Data loaded from API");
             console.log(this.music_library_data)
             // Store data in localStorage with 7d expiry
@@ -206,7 +221,7 @@ class MusicGrid extends LitElement {
   }
 
   _renderRecent(index) {
-    const selectedFolder = this.music_library_data.folders[index];
+    const selectedFolder = this.music_library_data?.folders?.[index];
     const selectedFolderContents = selectedFolder?.contents?.filter(
       record => record.year_added > this.currentDate.getFullYear() - 1
     )?.sort((a, b) => {

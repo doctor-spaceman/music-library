@@ -17,8 +17,8 @@
   /*---Typography---*/  
   --font-primary: 'Monda', Helvetica, sans-serif;
   --font-heading: 'Bungee Shade', Helvetica, sans-serif;
-  --font-p: calc(var(--size) * .75) var(--font-primary);
-  --font-p-small: calc(var(--size) * .88) var(--font-primary);
+  --font-p: calc(var(--size) * .875) var(--font-primary);
+  --font-p-small: calc(var(--size) * .75) var(--font-primary);
   --font-p-xsmall:  calc(var(--size) * .63) var(--font-primary);
   --font-p-large: var(--size) var(--font-primary);
   --font-h1: calc(var(--size) * 3)/calc(var(--size) * 3) var(--font-heading);
@@ -27,7 +27,7 @@
   --font-h4: var(--size)/calc(var(--size) * 1.125) var(--font-primary);
 
   /*---Spacing---*/
-  --spacing: calc(var(--size) / 4);
+  --spacing: calc(var(--size) / 4); /* 4px if 1rem is 16px */
   --spacing-2: calc(var(--spacing) * 2);
   --spacing-3: calc(var(--spacing) * 3);
   --spacing-4: calc(var(--spacing) * 4);

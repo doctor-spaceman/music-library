@@ -79,7 +79,11 @@ export const getLocalStorageWithExpiry = (key) => {
     }
   }
 
-  return JSON.parse(itemParsed.value);
+  try {
+    return JSON.parse(itemParsed.value);
+  } catch (error) {
+    return itemParsed.value;
+  }
 }
 
 /** Simple check for a "mobile" breakpoint based on the viewport width. */
