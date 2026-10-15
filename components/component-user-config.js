@@ -73,7 +73,7 @@ class MusicUserConfig extends LitElement {
     const $currentInput = event.target?.closest(
       `.collection-item__folder[data-folder=${folderName}]`
     )?.querySelector(
-      '.user-actions__input-record'
+      '.user-actions__input-record wa-input'
     );
     if ($currentInput) {
       const currentInputValue = $currentInput.value;
