@@ -7,11 +7,16 @@ body {
   position: relative;
 }
 #header {
-  padding: var(--spacing-6);
+  padding-top: var(--dna-space-3);
 }
 #header,
 #main {
   position: relative;
-  margin: var(--spacing-6);
-  width: calc(100% - calc(var(--spacing-6) * 2));
+  margin: var(--spacing-2);
+  width: calc(100% - calc(var(--spacing-2) * 2));
+
+  @media screen and (min-width: 640px) {
+    margin: var(--spacing-6);
+    width: calc(100% - calc(var(--spacing-6) * 2));
+  }
 }

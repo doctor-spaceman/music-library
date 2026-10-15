@@ -1,4 +1,4 @@
-import { LitElement, css, html, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
+import { LitElement, css, html, nothing, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/accordion/accordion.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/button/button.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/input/input.js';
@@ -10,24 +10,32 @@ import { debounce, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '
 
 class MusicGrid extends LitElement {
   static properties = {
-    data_ready: {
+    dataReady: {
       type: Boolean,
-      attribute: false,
       state: true
     },
-    music_library_data: {
+    collectionData: {
       type: Object,
-      attribute: false,
       state: true
     },
-    music_library_user: {
+    cdFolderId: {
       type: String,
-      attribute: false,
       state: true
     },
-    selected_folder: {
+    tapeFolderId: {
+      type: String,
+      state: true
+    },
+    vinylFolderId: {
+      type: String,
+      state: true
+    },
+    username: {
+      type: String,
+      state: true
+    },
+    selectedFolder: {
       type: Object,
-      attribute: false,
       state: true
     }
   }
@@ -35,15 +43,50 @@ class MusicGrid extends LitElement {
   constructor() {
     super();
 
-    this.data_ready = false;
-    this.music_library_data = {
-      folders: [{ handle: 'all', id: '0' }]
+    this.dataReady = false;
+    this.cdFolderId = '';
+    this.tapeFolderId = '';
+    this.vinylFolderId = '';
+    this.collectionData = {
+      folders: [
+        {
+          'handle': 'vinyl',
+          'id': this.vinylFolderId, 
+          'contents': []
+        },
+        {
+          'handle': 'cd',
+          'id': this.cdFolderId, 
+          'contents': []
+        },
+        {
+          'handle': 'tape',
+          'id': this.tapeFolderId, 
+          'contents': []
+        }
+      ]
+    };
+    this.username = getLocalStorageWithExpiry('music_library_user') || '';
+    if (this.username.length) {
+      this._setupGrid();
     }
-    this.music_library_user = getLocalStorageWithExpiry('music_library_user');
   }
 
   connectedCallback() {
     super.connectedCallback();
+
+    this.$collectionConfig = document.querySelector('music-user-config');
+    this.$collectionConfig.addEventListener('music-library:folder-id-added', (event) => {
+      console.log(event);
+      this._setFolderId(event.detail?.folderName, event.detail?.folderId);
+      this._getFolderContents(event.detail?.folderId);
+    });
+    this.$collectionConfig.addEventListener('music-library:folder-id-cleared', (event) => {
+      console.log(`Clear request received for ${event.detail?.folderName} ${event.detail?.folderId}`)
+      this._setFolderId(event.detail?.folderName, event.detail?.folderId);
+    });
+
+    console.log('Username from grid:', this.username)
   }
 
   disconnectedCallback() {
@@ -51,9 +94,9 @@ class MusicGrid extends LitElement {
   }
 
   updated(changedProperties) {
-    if (changedProperties.has('music_library_user')) {
-      console.log(`User: ${this.music_library_user}`);
-      if (this.music_library_user?.length) {
+    if (changedProperties.has('user')) {
+      console.log(`User: ${this.username}`);
+      if (this.username?.length) {
         this._setupGrid();
       } else {
         this._clearGrid();
@@ -62,9 +105,6 @@ class MusicGrid extends LitElement {
   }
 
   _setupGrid = async () => {
-    // TODO: Get everything in the collection (folder_id === 0), 
-    // and sort the results by "format" key
-
     // Check if we already have unexpired data
     this.currentDate = new Date();
     const musicLibraryData = getLocalStorageWithExpiry('music_library_data');
@@ -73,73 +113,99 @@ class MusicGrid extends LitElement {
     }
 
     if (Object.keys(musicLibraryData)?.length) {
-      this.data_ready = true;
-      this.music_library_data = musicLibraryData;
+      this.dataReady = true;
+      this.collectionData = musicLibraryData;
       console.log("Data loaded from storage");
-      if (Object.keys(this.music_library_data).length) {
-        console.log(this.music_library_data.folders);
-        this.original_folder = this.music_library_data.folders[0];
-        this.selected_folder = this.music_library_data.folders[0];
+      if (Object.keys(this.collectionData).length) {
+        console.log(this.collectionData.folders);
+        this.originalFolder = this.collectionData.folders[0];
+        this.selectedFolder = this.collectionData.folders[0];
+        if (this.$collectionConfig) {
+          this._setFolderId('cd', this.collectionData.folders.find(folder => folder.handle === 'cd').id);
+          this._setFolderId('tape', this.collectionData.folders.find(folder => folder.handle === 'tape').id);
+          this._setFolderId('vinyl', this.collectionData.folders.find(folder => folder.handle === 'vinyl').id);
+          this.$collectionConfig.cdFolderId = this.cdFolderId;
+          this.$collectionConfig.tapeFolderId = this.tapeFolderId;
+          this.$collectionConfig.vinylFolderId = this.vinylFolderId;
+        }
       }
     } else {
-      this._getFolderContents();
+      //this._getFolderContents();
     }
   }
 
   _clearGrid = () => {
-    this.data_ready = false;
+    this.dataReady = false;
     window.localStorage?.removeItem('music_library_data');
     window.localStorage?.removeItem('music_library_user');
   }
 
-  _getFolderContents = async () => {
+  _setFolderId = (folderName, folderId) => {
+    console.log(`${folderName} ID was set:`, folderId);
+    const folder = this.collectionData.folders.find(folder => folder.handle === folderName);
+    if (folder) {
+      folder.id = folderId;
+    }
+
+    switch(folderName) {
+      case 'cd':
+        this.cdFolderId = folderId;
+        break;
+      case 'tape':
+        this.tapeFolderId = folderId;
+        break;
+      case 'vinyl':
+        this.vinylFolderId = folderId;
+        break;
+    }
+  }
+
+  _getFolderContents = async (id) => {
     let firstPage;
     let firstPageData;
     let nextPage;
     let nextPageData;
     let folderContents = [];
 
-    for (const [index, folder] of this.music_library_data.folders.entries()) {
-      // Get first page of results
-      try {
+    // Get first page of results
+    try {
+      if (id) {
         firstPageData = await fetch(
-          `https://api.discogs.com/users/${this.music_library_user}/collection/folders/0/releases?page=1&per_page=100&sort=artist`
+          `https://api.discogs.com/users/${this.username}/collection/folders/${id}/releases?page=1&per_page=100&sort=artist`
         );
+      }
 
-        if (firstPageData) {
-          firstPage = await firstPageData.json();
-          folderContents = this._mapItemData(firstPage);
+      if (firstPageData) {
+        firstPage = await firstPageData.json();
+        folderContents = this._mapItemData(firstPage);
 
-          // Get subsequent pages
-          for (let page = 2; page <= firstPage.pagination.pages; page++) {
-            nextPageData = await fetch(
-              `https://api.discogs.com/users/${this.music_library_user}/collection/folders/0/releases?page=${page}&per_page=100&sort=artist`
-            );
-            if (nextPageData) {
-              nextPage = await nextPageData.json();
-              folderContents = [...folderContents, ...this._mapItemData(nextPage)];
-            }
-          }
-
-          this.music_library_data.folders[index].contents = folderContents;
-
-          if (index === this.music_library_data.folders.length - 1) {
-            this.data_ready = true;
-            this.original_folder = this.music_library_data.folders[0];
-            this.selected_folder = this.music_library_data.folders[0];
-            console.log("Data loaded from API");
-            console.log(this.music_library_data)
-            // Store data in localStorage with 7d expiry
-            setLocalStorageWithExpiry(
-              'music_library_data',
-              JSON.stringify(this.music_library_data),
-              604800000
-            );
+        // Get subsequent pages
+        for (let page = 2; page <= firstPage.pagination.pages; page++) {
+          nextPageData = await fetch(
+            `https://api.discogs.com/users/${this.username}/collection/folders/${id}/releases?page=${page}&per_page=100&sort=artist`
+          );
+          if (nextPageData) {
+            nextPage = await nextPageData.json();
+            folderContents = [...folderContents, ...this._mapItemData(nextPage)];
           }
         }
-      } catch(error) {
-        console.error('Error fetching data:', error);
+
+        this.collectionData.folders.find(folder => folder.id === id).contents = folderContents;
+        this.dataReady = true;
+        this.originalFolder = this.collectionData.folders[0];
+        this.selectedFolder = this.collectionData.folders[0];
+        this.requestUpdate();
+        console.log("Data loaded from API");
+        console.log(this.collectionData)
+        // Store data in localStorage with 7d expiry
+        setLocalStorageWithExpiry(
+          'music_library_data',
+          JSON.stringify(this.collectionData),
+          604800000
+        );
       }
+    } catch(error) {
+      console.error(`Error fetching folder contents`, error);
     }
   }
 
@@ -189,31 +255,31 @@ class MusicGrid extends LitElement {
 
   _searchList = debounce((query) => {
     this._resetList();
-    this.original_folder = structuredClone(this.selected_folder);
+    this.originalFolder = structuredClone(this.selectedFolder);
     
     const queryLowerCased = query.toLowerCase();
-    const filteredContents = this.selected_folder.contents.filter(
+    const filteredContents = this.selectedFolder.contents.filter(
       (record) => {
         const artistLowerCased = record?.artist?.toLowerCase();
         const titleLowerCased = record?.title?.toLowerCase();
         return artistLowerCased.includes(queryLowerCased) || titleLowerCased.includes(queryLowerCased);
       }
     );
-    this.selected_folder = { ...this.selected_folder, contents: filteredContents };
+    this.selectedFolder = { ...this.selectedFolder, contents: filteredContents };
   }, 800)
 
   _pickRandom() {
     this._resetList();
-    const randomResult = this.selected_folder.contents[
+    const randomResult = this.selectedFolder.contents[
       Math.floor(
-        Math.random() * this.selected_folder.contents.length
+        Math.random() * this.selectedFolder.contents.length
       )
     ];
-    this.selected_folder = { ...this.selected_folder, contents: [randomResult] };
+    this.selectedFolder = { ...this.selectedFolder, contents: [randomResult] };
   }
 
   _resetList() {
-    this.selected_folder = this.original_folder;
+    this.selectedFolder = this.originalFolder;
   }
 
   _resetInput(event) {
@@ -221,7 +287,7 @@ class MusicGrid extends LitElement {
   }
 
   _renderRecent(index) {
-    const selectedFolder = this.music_library_data?.folders?.[index];
+    const selectedFolder = this.collectionData?.folders?.[index];
     const selectedFolderContents = selectedFolder?.contents?.filter(
       record => record.year_added > this.currentDate.getFullYear() - 1
     )?.sort((a, b) => {
@@ -234,7 +300,7 @@ class MusicGrid extends LitElement {
       <section>
         <h2>Recent Additions</h2>
         ${when(
-          this.data_ready,
+          this.dataReady,
           () => html`
             ${when(
               selectedFolderContents?.length,
@@ -272,7 +338,7 @@ class MusicGrid extends LitElement {
           clearable
           pill
           @input=${(e) => this._searchList(e.target.value)}
-          @wa-clear=${() => this.selected_folder = this.original_folder}
+          @wa-clear=${() => this.selectedFolder = this.originalFolder}
         ></wa-input>
         <div class="flex">
           <wa-button
@@ -300,19 +366,19 @@ class MusicGrid extends LitElement {
       <section>
         <h2>All Albums</h2>
         ${when(
-          this.data_ready,
+          this.dataReady,
           () => html`
             ${this._renderListActions()}
             ${when(
-              this.selected_folder?.contents?.length,
+              this.selectedFolder?.contents?.length,
               () => html`
                 <ul class="list list--grid flex">
                   ${repeat(
-                    this._sortByArtist(this.selected_folder),
+                    this._sortByArtist(this.selectedFolder),
                     artist => artist,
                     artist => html`
                       ${repeat(
-                        this.selected_folder.contents.filter(
+                        this.selectedFolder.contents.filter(
                           record => record.artist === artist
                         ).sort((a, b) => a.year - b.year),
                         record => record.id,
@@ -341,43 +407,57 @@ class MusicGrid extends LitElement {
   render() {
     return html`
       ${when(
-        this.music_library_data?.folders?.length > 1,
+        this.collectionData.folders.some(folder => folder.contents.length),
         () => html`
           <wa-tab-group>
             ${repeat(
-              this.music_library_data.folders,
+              this.collectionData.folders,
               folder => folder.id,
               (folder, index) => html`
-                <wa-tab
-                  slot="nav"
-                  panel="${folder.handle}"
-                  @click=${() => {
-                    this.original_folder = folder
-                    this.selected_folder = folder
-                  }}
-                >
-                  ${folder.handle.toUpperCase()}
-                </wa-tab>
+                ${when(
+                  folder.contents?.length,
+                  () => html`
+                    <wa-tab
+                      slot="nav"
+                      panel="${folder.handle}"
+                      @click=${() => {
+                        this.originalFolder = folder
+                        this.selectedFolder = folder
+                      }}
+                    >
+                      ${folder.handle.toUpperCase()}
+                    </wa-tab>
+                  `,
+                  () => nothing
+                )}
               `
             )}
             ${repeat(
-              this.music_library_data.folders,
+              this.collectionData.folders,
               folder => folder.id,
               (folder, index) => html`
-                <wa-tab-panel
-                  name="${folder.handle}"
-                >
-                  ${this._renderRecent(index)}
-                  ${this._renderList()}
-                </wa-tab-panel>
+                ${when(
+                  folder.contents?.length,
+                  () => html`
+                    ${when(
+                      folder.contents?.length,
+                      () => html`
+                        <wa-tab-panel
+                          name="${folder.handle}"
+                        >
+                          ${this._renderRecent(index)}
+                          ${this._renderList()}
+                        </wa-tab-panel>
+                      `,
+                      () => nothing
+                    )}
+                  `
+                )}
               `
             )}
           </wa-tab-group>
         `,
-        () => html`
-          ${this._renderRecent(0)}
-          ${this._renderList()}
-        `
+        () => nothing // TODO: show instructions for adding folders
       )}
     `;
   }

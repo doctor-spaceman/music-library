@@ -86,5 +86,7 @@ export const buttons = css`
     font: var(--font-p-small);
     height: unset;
     padding: 0;
+    text-decoration: underline;
+    text-transform: uppercase;
   }
 `
