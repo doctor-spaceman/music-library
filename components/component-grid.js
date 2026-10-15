@@ -145,6 +145,9 @@ class MusicGrid extends LitElement {
     const folder = this.collectionData.folders.find(folder => folder.handle === folderName);
     if (folder) {
       folder.id = folderId;
+      if (!folderId.length) {
+        folder.contents = [];
+      }
     }
 
     switch(folderName) {
@@ -158,6 +161,14 @@ class MusicGrid extends LitElement {
         this.vinylFolderId = folderId;
         break;
     }
+
+    setLocalStorageWithExpiry(
+      'music_library_data',
+      JSON.stringify(this.collectionData),
+      604800000
+    );
+
+    this.requestUpdate();
   }
 
   _getFolderContents = async (id) => {
