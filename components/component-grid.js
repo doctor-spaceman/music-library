@@ -468,9 +468,12 @@ class MusicGrid extends LitElement {
     typography,
     css`
       section {
-        padding-bottom: var(--spacing-20);
-      }
+        padding-bottom: var(--spacing-8);
 
+        @media screen and (min-width: 640px) {
+          padding-bottom: var(--spacing-10);
+        }
+      }
       .list-actions {
         display: flex;
         flex-direction: column;
@@ -484,7 +487,6 @@ class MusicGrid extends LitElement {
           align-items: flex-end;
         }
       }
-
       .list-actions__search {
         flex: 1 1 auto;
         width: 100%;
@@ -493,29 +495,20 @@ class MusicGrid extends LitElement {
           width: unset;
         }
       }
-
       .list-actions__random {
         margin-right: var(--spacing-3);
       }
-
       .list {
         gap: var(--spacing-4);
         list-style: none;
         margin: 0;
         padding: var(--spacing-6) 0;
       }
-      
       .list--horizontal { 
         flex-wrap: nowrap;
         overflow-x: auto;
+        padding-top: 0;
       }
-      
-      .list--grid {
-        li {
-          margin-bottom: var(--spacing-6);
-        }
-      }
-
       wa-tab-group {
         --track-width: 0px;
       }
@@ -543,13 +536,20 @@ class MusicGrid extends LitElement {
       }
       wa-tab-panel {
         background-color: var(--color-sand);
-        padding: 0 var(--spacing-6);
+        padding: 0 var(--spacing-2);
+
+        @media screen and (min-width: 640px) {
+          padding: 0 var(--spacing-6);
+        }
       }
       wa-tab-panel[id="wa-tab-panel-1"] {
         background-color: var(--color-sand);
       }
       wa-tab-panel[id="wa-tab-panel-2"] {
         background-color: var(--color-scrub);
+      }
+      wa-tab-panel::part(base) {
+        padding: var(--spacing-2);
       }
     `
   ];
