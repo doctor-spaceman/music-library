@@ -34,6 +34,12 @@ export const typography = css`
     font: var(--font-h4);
     margin: 0; 
   }
+  code {
+    border-radius: var(--spacing);
+    background-color: var(--color-light-gray);
+    padding: calc(var(--spacing) / 2) var(--spacing-2);
+    text-wrap: nowrap;
+  }
 `;
 
 export const theme = css`
@@ -73,6 +79,9 @@ export const utilities = css`
     margin: -1px; 
     padding: 0; 
     border: 0;
+  }
+  .hidden {
+    display: none;
   }
 `
 

@@ -7,7 +7,7 @@
     <title>Music Library</title>
     <link rel="stylesheet" href="https://ka-f.webawesome.com/webawesome@3.14.0/styles/themes/default.css">
     <script type="module" src="https://ka-f.webawesome.com/webawesome@3.14.0/webawesome.loader.js"></script>
-    <script src="././components/component-filters.js" type="module"></script>
+    <script src="././components/component-modal.js" type="module"></script>
     <script src="././components/component-grid.js" type="module"></script>
     <script src="././components/component-card.js" type="module"></script>
     <script src="././components/component-user-config.js" type="module"></script>
@@ -24,11 +24,13 @@
       <music-user-config></music-user-config>
     </header>
     <main id="main" class="flex flex-column flex-nowrap">
-      <music-filters></music-filters>
       <music-grid></music-grid>
-      <music-info-screen></music-info-screen>
     </main>
-    <footer></footer>
+    <music-modal class="hidden"></music-modal>
+    <footer id="footer">
+      <p>Powered by <a href="https://www.discogs.com/developers/" target="_blank">Discogs API</a>
+      <br>&#169; <a href="https://mattmclean.net" target="_blank">Matt McLean</a</p>
+    </footer>
     <noscript>
       <p>This app requires Javascript.</p>
     </noscript>

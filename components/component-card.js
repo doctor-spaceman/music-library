@@ -42,7 +42,7 @@ class MusicCard extends LitElement {
       .record {
         flex: 0 0 auto;
         background-color: var(--color-light-primary);
-        border: 1px solid var(--color-light-gray);
+        border: 1px solid var(--color-gray);
         box-sizing: border-box;
         box-shadow: 
           0px 1px 0 var(--color-dark-primary),
@@ -56,8 +56,8 @@ class MusicCard extends LitElement {
           4px 5px 0 var(--color-dark-primary),
           5px 4px 0 var(--color-dark-primary);
         height: 100%;
-        width: 160px;
         padding: var(--spacing-2);
+        width: 160px;
 
         @media screen and (min-width: 768px) {
           width: 200px;
@@ -65,8 +65,13 @@ class MusicCard extends LitElement {
       }
       .record__thumbnail {
         aspect-ratio: 1;
+        background-color: var(--color-gray);
         display: block;
-        width: 100%;
+        width: calc(160px - calc(var(--spacing-2) * 2));
+
+        @media screen and (min-width: 768px) {
+          width: calc(200px - calc(var(--spacing-2) * 2));
+        }
       }
       .record__title {
         margin: var(--spacing-2) 0;
@@ -76,7 +81,7 @@ class MusicCard extends LitElement {
       }
       .record__release-year {
         align-self: flex-end;
-        color: var(--color-light-gray);
+        color: var(--color-gray);
         font: var(--font-p-small);
         margin: 0;
       }

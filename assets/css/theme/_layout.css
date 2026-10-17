@@ -10,7 +10,8 @@ body {
   padding-top: var(--dna-space-3);
 }
 #header,
-#main {
+#main,
+#footer {
   position: relative;
   margin: var(--spacing-2);
   width: calc(100% - calc(var(--spacing-2) * 2));
@@ -19,4 +20,10 @@ body {
     margin: var(--spacing-6);
     width: calc(100% - calc(var(--spacing-6) * 2));
   }
+}
+html:has(music-modal:defined:not(.hidden)),
+body:has(music-modal:defined:not(.hidden)) {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
 }

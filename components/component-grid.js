@@ -1,16 +1,24 @@
 import { LitElement, css, html, nothing, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
+import { structure, theme, typography, utilities } from '../assets/js/styles.js';
+import { debounce, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/accordion/accordion.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/button/button.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/input/input.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/tab/tab.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/tab-group/tab-group.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/tab-panel/tab-panel.js';
-import { structure, theme, typography } from '../assets/js/styles.js';
-import { debounce, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
 
 class MusicGrid extends LitElement {
   static properties = {
     dataReady: {
+      type: Boolean,
+      state: true
+    },
+    requesting: {
+      type: Boolean,
+      state: true
+    },
+    requestFailed: {
       type: Boolean,
       state: true
     },
@@ -30,20 +38,23 @@ class MusicGrid extends LitElement {
       type: String,
       state: true
     },
+    selectedFolder: {
+      type: Object,
+      state: true
+    },
     username: {
       type: String,
       state: true
     },
-    selectedFolder: {
-      type: Object,
-      state: true
-    }
   }
 
   constructor() {
     super();
 
+    this.currentDate = new Date();
     this.dataReady = false;
+    this.requesting = false;
+    this.requestFailed = false;
     this.cdFolderId = '';
     this.tapeFolderId = '';
     this.vinylFolderId = '';
@@ -75,14 +86,13 @@ class MusicGrid extends LitElement {
   connectedCallback() {
     super.connectedCallback();
 
+    this.$modal = document.querySelector('music-modal');
     this.$collectionConfig = document.querySelector('music-user-config');
     this.$collectionConfig.addEventListener('music-library:folder-id-added', (event) => {
-      console.log(event);
       this._setFolderId(event.detail?.folderName, event.detail?.folderId);
-      this._getFolderContents(event.detail?.folderId);
+      this._getFolderContents(event.detail?.folderName, event.detail?.folderId);
     });
     this.$collectionConfig.addEventListener('music-library:folder-id-cleared', (event) => {
-      console.log(`Clear request received for ${event.detail?.folderName} ${event.detail?.folderId}`)
       this._setFolderId(event.detail?.folderName, event.detail?.folderId);
     });
 
@@ -94,12 +104,31 @@ class MusicGrid extends LitElement {
   }
 
   updated(changedProperties) {
-    if (changedProperties.has('user')) {
+    console.log(changedProperties)
+    if (changedProperties.has('username')) {
       console.log(`User: ${this.username}`);
       if (this.username?.length) {
         this._setupGrid();
       } else {
         this._clearGrid();
+      }
+    }
+
+    if (changedProperties.has('requesting')) {
+      if (this.$modal) {
+        if (this.requesting) {
+          this.$modal.classList.remove('hidden');
+        } else {
+          if (!this.requestFailed) {
+            this.$modal.classList.add('hidden');
+          }
+        }
+      }
+    }
+
+    if (changedProperties.has('requestFailed')) {
+      if (this.$modal && this.requestFailed) {
+        this.$modal.requestFailed = this.requestFailed
       }
     }
   }
@@ -113,13 +142,12 @@ class MusicGrid extends LitElement {
     }
 
     if (Object.keys(musicLibraryData)?.length) {
-      this.dataReady = true;
       this.collectionData = musicLibraryData;
       console.log("Data loaded from storage");
       if (Object.keys(this.collectionData).length) {
         console.log(this.collectionData.folders);
-        this.originalFolder = this.collectionData.folders[0];
-        this.selectedFolder = this.collectionData.folders[0];
+        this.originalFolder = this.collectionData.folders.find(folder => folder.contents.length);
+        this.selectedFolder = this.collectionData.folders.find(folder => folder.contents.length);
         if (this.$collectionConfig) {
           this._setFolderId('cd', this.collectionData.folders.find(folder => folder.handle === 'cd').id);
           this._setFolderId('tape', this.collectionData.folders.find(folder => folder.handle === 'tape').id);
@@ -128,14 +156,16 @@ class MusicGrid extends LitElement {
           this.$collectionConfig.tapeFolderId = this.tapeFolderId;
           this.$collectionConfig.vinylFolderId = this.vinylFolderId;
         }
+        this.dataReady = true;
       }
-    } else {
-      //this._getFolderContents();
     }
   }
 
   _clearGrid = () => {
     this.dataReady = false;
+    for (const folder of this.collectionData.folders) {
+      this._setFolderId(folder.handle, '');
+    }
     window.localStorage?.removeItem('music_library_data');
     window.localStorage?.removeItem('music_library_user');
   }
@@ -171,7 +201,7 @@ class MusicGrid extends LitElement {
     this.requestUpdate();
   }
 
-  _getFolderContents = async (id) => {
+  _getFolderContents = async (folderName, folderId) => {
     let firstPage;
     let firstPageData;
     let nextPage;
@@ -180,9 +210,11 @@ class MusicGrid extends LitElement {
 
     // Get first page of results
     try {
-      if (id) {
+      this.requesting = true;
+
+      if (folderId) {
         firstPageData = await fetch(
-          `https://api.discogs.com/users/${this.username}/collection/folders/${id}/releases?page=1&per_page=100&sort=artist`
+          `https://api.discogs.com/users/${this.username}/collection/folders/${folderId}/releases?page=1&per_page=100&sort=artist`
         );
       }
 
@@ -193,7 +225,7 @@ class MusicGrid extends LitElement {
         // Get subsequent pages
         for (let page = 2; page <= firstPage.pagination.pages; page++) {
           nextPageData = await fetch(
-            `https://api.discogs.com/users/${this.username}/collection/folders/${id}/releases?page=${page}&per_page=100&sort=artist`
+            `https://api.discogs.com/users/${this.username}/collection/folders/${folderId}/releases?page=${page}&per_page=100&sort=artist`
           );
           if (nextPageData) {
             nextPage = await nextPageData.json();
@@ -201,11 +233,12 @@ class MusicGrid extends LitElement {
           }
         }
 
-        this.collectionData.folders.find(folder => folder.id === id).contents = folderContents;
+        const selectedFolder = this.collectionData.folders.find(folder => folder.id === folderId);
+        selectedFolder.contents = folderContents;
+        this.selectedFolder = selectedFolder;
         this.dataReady = true;
-        this.originalFolder = this.collectionData.folders[0];
-        this.selectedFolder = this.collectionData.folders[0];
         this.requestUpdate();
+        this.renderRoot.querySelector('wa-tab-group')?.setAttribute('active', folderName);
         console.log("Data loaded from API");
         console.log(this.collectionData)
         // Store data in localStorage with 7d expiry
@@ -214,9 +247,13 @@ class MusicGrid extends LitElement {
           JSON.stringify(this.collectionData),
           604800000
         );
+        this.requesting = false;
       }
     } catch(error) {
-      console.error(`Error fetching folder contents`, error);
+      console.warn('Could not retrieve folder contents.');
+      console.log(error.message);
+      this.requestFailed = true;
+      this.requesting = false;
     }
   }
 
@@ -297,9 +334,8 @@ class MusicGrid extends LitElement {
     event.target.closest('.list-actions').querySelector('.list-actions__search').value = '';
   }
 
-  _renderRecent(index) {
-    const selectedFolder = this.collectionData?.folders?.[index];
-    const selectedFolderContents = selectedFolder?.contents?.filter(
+  _renderRecent() {
+    const recents = this.selectedFolder?.contents?.filter(
       record => record.year_added > this.currentDate.getFullYear() - 1
     )?.sort((a, b) => {
       const aDate = new Date(a.date_added);
@@ -314,11 +350,11 @@ class MusicGrid extends LitElement {
           this.dataReady,
           () => html`
             ${when(
-              selectedFolderContents?.length,
+              recents?.length,
               () => html`
                 <ul class="list list--horizontal flex">
                   ${repeat(
-                    selectedFolderContents,
+                    recents,
                     record => record.id,
                     record => html`<li><music-card .record=${record}></music-card></li>`
                   )}
@@ -329,12 +365,7 @@ class MusicGrid extends LitElement {
               `
             )}
           `,
-          () => html`
-            <div class="loading">
-              <img width="80" src="./assets/img/record-player-pixel-art.gif" alt="Graphic of a turntable with a spinning record" />
-              <p>LOADING ...</p>
-            </div>
-          `
+          () => nothing
         )}
       </section>
     `;
@@ -404,12 +435,7 @@ class MusicGrid extends LitElement {
               `
             )}
           `,
-          () => html`
-            <div class="loading">
-              <img width="80" src="./assets/img/record-player-pixel-art.gif" alt="Graphic of a turntable with a spinning record" />
-              <p>LOADING ...</p>
-            </div>
-          `
+          () => nothing
         )}
       </section>
     `;
@@ -456,7 +482,7 @@ class MusicGrid extends LitElement {
                         <wa-tab-panel
                           name="${folder.handle}"
                         >
-                          ${this._renderRecent(index)}
+                          ${this._renderRecent()}
                           ${this._renderList()}
                         </wa-tab-panel>
                       `,
@@ -468,7 +494,17 @@ class MusicGrid extends LitElement {
             )}
           </wa-tab-group>
         `,
-        () => nothing // TODO: show instructions for adding folders
+        () => html`
+          <div class="setup-instructions">
+            <ol>
+              <li>In your Discogs collection, organize your items into folders by format (e.g. "Vinyl", "CD").</li>
+              <li>Go in to each folder and note the folder ID in the browser address bar.<br>
+                You want the number after <code>?folder=</code> in the URL.
+              </li>
+              <li>Enter the IDs in the appropriate fields and click "Add" to fetch your items!</li>
+            </ol>
+          </div>
+        `
       )}
     `;
   }
@@ -477,7 +513,11 @@ class MusicGrid extends LitElement {
     structure,
     theme,
     typography,
+    utilities,
     css`
+      .setup-instructions {
+        max-width: 640px;
+      }
       section {
         padding-bottom: var(--spacing-8);
 
@@ -527,13 +567,17 @@ class MusicGrid extends LitElement {
         display: none;
       }
       wa-tab-group::part(tabs) {
-        repeat(2, 1fr);
+        border: none;
       }
       wa-tab {
         background-color: var(--color-sand);
-        border-radius: var(--spacing-2) var(--spacing-2) 0px 0px;
+        border: none;
+        border-radius: var(--wa-panel-border-radius) var(--wa-panel-border-radius) 0px 0px;
         cursor: pointer;
         min-width: 140px;
+      }
+      wa-tab[active] {
+        color: initial;
       }
       wa-tab::part(base) {
         font: var(--font-h4);
@@ -547,6 +591,8 @@ class MusicGrid extends LitElement {
       }
       wa-tab-panel {
         background-color: var(--color-sand);
+        border-radius: 0 var(--wa-panel-border-radius) var(--wa-panel-border-radius);
+        box-shadow: var(--spacing) var(--spacing) 0 var(--color-dark-primary);
         padding: 0 var(--spacing-2);
 
         @media screen and (min-width: 640px) {

@@ -31,3 +31,9 @@ h4, .h4 {
   font: var(--font-h4);
   margin: 0; 
 }
+code {
+  border-radius: var(--spacing);
+  background-color: var(--color-light-gray);
+  padding: calc(var(--spacing) / 2) var(--spacing-2);
+  text-wrap: nowrap;
+}

@@ -1,6 +1,8 @@
 import { LitElement, createRef, css, html, nothing, ref, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
 import { buttons, structure, typography, utilities } from '../assets/js/styles.js';
-import { getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
+import { debounce, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
+import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/button/button.js';
+import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/input/input.js';
 
 class MusicUserConfig extends LitElement {
   static properties = {
@@ -45,6 +47,10 @@ class MusicUserConfig extends LitElement {
     console.log(this.vinylFolderId)
   }
 
+  disconnectedCallback() {
+    super.disconnectedCallback();
+  }
+
   updated(changedProperties) {
     if (changedProperties.has('username')) {
       this.$musicGrid.username = this.username;
@@ -75,8 +81,9 @@ class MusicUserConfig extends LitElement {
     )?.querySelector(
       '.user-actions__input-record wa-input'
     );
-    if ($currentInput) {
-      const currentInputValue = $currentInput.value;
+    
+    const currentInputValue = $currentInput?.value
+    if (currentInputValue?.length) {
       switch(folderName) {
         case 'cd':
           this.cdFolderId = currentInputValue;
@@ -95,6 +102,16 @@ class MusicUserConfig extends LitElement {
           folderId: currentInputValue
         }
       }));
+    } else {
+      const $errorMessage = event.target.closest(
+        `[data-folder=${folderName}]`
+      )?.querySelector(
+        '.user-actions__input-error'
+      );
+      if ($errorMessage) {
+        $errorMessage.textContent = 'Please input the numeric folder ID';
+        $errorMessage.setAttribute('active', '');
+      }
     }
   }
 
@@ -124,6 +141,27 @@ class MusicUserConfig extends LitElement {
     }));
   }
 
+  _handleInput = (event, folderName) => {
+    const inputValue = event.target?.value;
+    const $errorMessage = event.target.closest(
+      `[data-folder=${folderName}]`
+    )?.querySelector(
+      '.user-actions__input-error'
+    );
+
+    if ($errorMessage?.hasAttribute('active')) {
+      $errorMessage.removeAttribute('active');
+    }
+
+    const numbersOnlyRegex = /^\d*$/;
+    if (inputValue) {
+      if (!numbersOnlyRegex.test(inputValue)) {
+        $errorMessage.textContent = 'Input must be a number';
+        $errorMessage.setAttribute('active', '');
+      }
+    }
+  }
+
   _renderFolderAction(folderName, folderId) {
     return html`
       <tr
@@ -151,12 +189,15 @@ class MusicUserConfig extends LitElement {
           () => html`
             <td class="user-actions__input-record">
               <wa-input
+                inputmode="numeric"
                 placeholder="${folderName} folder ID"
+                @input=${(e) => debounce(this._handleInput(e, folderName), 500)}
               >
                 <slot name="label" class="sr-only">
                   ${folderName} folder ID
                 </slot>
               </wa-input>
+              <p class="user-actions__input-error p4"></p>
             </td>
             <td>
               <wa-button
@@ -182,7 +223,9 @@ class MusicUserConfig extends LitElement {
               <wa-accordion-item
                 class="user-actions__collection-item"
                 label="Add records"
-                ?expanded=${!this.$musicGrid?.collectionData?.folders?.length}
+                ?expanded=${!this.$musicGrid?.collectionData?.folders?.some(
+                  folder => folder.contents?.length
+                )}
               >
                 <table>
                   ${this._renderFolderAction('vinyl', this.vinylFolderId)}
@@ -316,6 +359,20 @@ class MusicUserConfig extends LitElement {
         .user-actions__input-record wa-input::part(input)::placeholder {
           text-transform: uppercase;
         }
+        .user-actions__add-record {
+          display: flex;
+          align-items: center;
+        }
+      }
+      .user-actions__input-error {
+        color: #cf3a0d;
+        height: 0;
+        opacity: 0;
+        transition: opacity .12s ease, height .12s ease;
+      }
+      .user-actions__input-error[active] {
+        height: unset;
+        opacity: 1;
       }
     `
   ];
