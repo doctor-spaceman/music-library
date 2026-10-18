@@ -1,4 +1,4 @@
-import { LitElement, createRef, css, html, nothing, ref, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
+import { LitElement, createRef, css, html, ref, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
 import { buttons, structure, typography, utilities } from '../assets/js/styles.js';
 import { debounce, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/button/button.js';
@@ -41,20 +41,10 @@ class MusicUserConfig extends LitElement {
     this.cdFolderId = this._getFolderId('cd');
     this.tapeFolderId = this._getFolderId('tape');
     this.vinylFolderId = this._getFolderId('vinyl');
-
-    console.log('Username from config:', this.username)
-    console.log(this.cdFolderId)
-    console.log(this.vinylFolderId)
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-  }
-
-  updated(changedProperties) {
-    if (changedProperties.has('username')) {
-      this.$musicGrid.username = this.username;
-    }
   }
 
   _clearUsername = () => {
@@ -63,7 +53,14 @@ class MusicUserConfig extends LitElement {
 
   _enterUsername = () => {
     this.username = this.$usernameInputRef.value.value;
+
     setLocalStorageWithExpiry('music_library_user', this.username);
+
+    this.dispatchEvent(new CustomEvent('music-library:user-changed', {
+      detail: {
+        username: this.username,
+      }
+    }));
   }
 
   _getFolderId = (folderName) => {
@@ -75,11 +72,11 @@ class MusicUserConfig extends LitElement {
     )?.id;
   }
 
-  _setFolderId = (event, folderName) => {
+  _addFolder = (event, folderName) => {
     const $currentInput = event.target?.closest(
       `.collection-item__folder[data-folder=${folderName}]`
     )?.querySelector(
-      '.user-actions__input-record wa-input'
+      '.user-actions__input-folder wa-input'
     );
     
     const currentInputValue = $currentInput?.value
@@ -115,7 +112,7 @@ class MusicUserConfig extends LitElement {
     }
   }
 
-  _changeFolderId = (event, folderName) => {
+  _changeFolder = (event, folderName) => {
     const $folderToChange = event.target?.closest(
       `.collection-item__folder[data-folder=${folderName}]`
     );
@@ -133,12 +130,10 @@ class MusicUserConfig extends LitElement {
       }
     }
 
-    this.dispatchEvent(new CustomEvent('music-library:folder-id-cleared', {
-      detail: {
-        folderName,
-        folderId: ''
-      }
-    }));
+    this.dispatchEvent(new CustomEvent(
+      'music-library:folder-id-cleared',
+      { detail: { folderName } },
+    ));
   }
 
   _handleInput = (event, folderName) => {
@@ -153,16 +148,25 @@ class MusicUserConfig extends LitElement {
       $errorMessage.removeAttribute('active');
     }
 
+    const $inputButton = event.target.closest(
+      `[data-folder=${folderName}]`
+    )?.querySelector(
+      '.user-actions__add-folder'
+    );
     const numbersOnlyRegex = /^\d*$/;
     if (inputValue) {
       if (!numbersOnlyRegex.test(inputValue)) {
         $errorMessage.textContent = 'Input must be a number';
         $errorMessage.setAttribute('active', '');
+        $inputButton.disabled = true
+      } else {
+        $inputButton.disabled = false
       }
     }
   }
 
   _renderFolderAction(folderName, folderId) {
+    console.log(folderName, folderId)
     return html`
       <tr
         class="collection-item__folder flex"
@@ -174,20 +178,20 @@ class MusicUserConfig extends LitElement {
             <td class="collection-item__folder-name">
               <p>${folderName} folder ID:</p>
             </td>
-            <td>
+            <td class="flex flex-center">
               <p>${folderId}</p>
             </td>
-            <td>
+            <td class="flex flex-center">
               <wa-button
                 class="user-actions__change-folder button--simple"
-                @click=${(e) => this._changeFolderId(e, folderName)}
+                @click=${(e) => this._changeFolder(e, folderName)}
               >
                 Change
               </wa-button>
             </td>
           `,
           () => html`
-            <td class="user-actions__input-record">
+            <td class="user-actions__input-folder">
               <wa-input
                 inputmode="numeric"
                 placeholder="${folderName} folder ID"
@@ -199,10 +203,10 @@ class MusicUserConfig extends LitElement {
               </wa-input>
               <p class="user-actions__input-error p4"></p>
             </td>
-            <td>
+            <td class="flex flex-center">
               <wa-button
-                class="user-actions__add-record button--simple"
-                @click=${(e) => this._setFolderId(e, folderName)}
+                class="user-actions__add-folder button--simple"
+                @click=${(e) => this._addFolder(e, folderName)}
               >
                 Add
               </wa-button>
@@ -235,7 +239,7 @@ class MusicUserConfig extends LitElement {
               </wa-accordion-item>
             </wa-accordion>
           `,
-          () => nothing,
+          () => html`<p>Please enter an account name.</p>`
         )}
         <div class="user-actions__account flex flex-center">
           ${when(
@@ -356,10 +360,10 @@ class MusicUserConfig extends LitElement {
           padding: 0;
           text-transform: uppercase;
         }
-        .user-actions__input-record wa-input::part(input)::placeholder {
+        .user-actions__input-folder wa-input::part(input)::placeholder {
           text-transform: uppercase;
         }
-        .user-actions__add-record {
+        .user-actions__add-folder {
           display: flex;
           align-items: center;
         }
@@ -368,11 +372,13 @@ class MusicUserConfig extends LitElement {
         color: #cf3a0d;
         height: 0;
         opacity: 0;
-        transition: opacity .12s ease, height .12s ease;
+        padding-top: 0;
+        transition: opacity .12s ease, height .12s ease, padding .12s ease;
       }
       .user-actions__input-error[active] {
         height: unset;
         opacity: 1;
+        padding-top: var(--spacing-1);
       }
     `
   ];

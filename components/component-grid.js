@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
+import { LitElement, classMap, css, html, nothing, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
 import { structure, theme, typography, utilities } from '../assets/js/styles.js';
 import { debounce, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/accordion/accordion.js';
@@ -88,15 +88,21 @@ class MusicGrid extends LitElement {
 
     this.$modal = document.querySelector('music-modal');
     this.$collectionConfig = document.querySelector('music-user-config');
+    this.$collectionConfig.addEventListener('music-library:user-changed', (event) => {
+      this.username = event.detail?.username;
+      if (this.username?.length) {
+        this._setupGrid();
+      } else {
+        this._clearGrid();
+      }
+    })
     this.$collectionConfig.addEventListener('music-library:folder-id-added', (event) => {
       this._setFolderId(event.detail?.folderName, event.detail?.folderId);
       this._getFolderContents(event.detail?.folderName, event.detail?.folderId);
     });
     this.$collectionConfig.addEventListener('music-library:folder-id-cleared', (event) => {
-      this._setFolderId(event.detail?.folderName, event.detail?.folderId);
+      this._setFolderId(event.detail?.folderName, '');
     });
-
-    console.log('Username from grid:', this.username)
   }
 
   disconnectedCallback() {
@@ -104,16 +110,6 @@ class MusicGrid extends LitElement {
   }
 
   updated(changedProperties) {
-    console.log(changedProperties)
-    if (changedProperties.has('username')) {
-      console.log(`User: ${this.username}`);
-      if (this.username?.length) {
-        this._setupGrid();
-      } else {
-        this._clearGrid();
-      }
-    }
-
     if (changedProperties.has('requesting')) {
       if (this.$modal) {
         if (this.requesting) {
@@ -171,33 +167,25 @@ class MusicGrid extends LitElement {
   }
 
   _setFolderId = (folderName, folderId) => {
-    console.log(`${folderName} ID was set:`, folderId);
-    const folder = this.collectionData.folders.find(folder => folder.handle === folderName);
-    if (folder) {
-      folder.id = folderId;
-      if (!folderId.length) {
-        folder.contents = [];
+    const folderToUpdate = this.collectionData.folders.find(folder => folder.handle === folderName);
+    if (folderToUpdate) {
+      this.collectionData.folders[
+        this.collectionData.folders.indexOf(folderToUpdate)
+      ].id = folderId;
+      if (folderId === '') {
+        console.log(`${folderName} ID was cleared`);
+        this.collectionData.folders[
+          this.collectionData.folders.indexOf(folderToUpdate)
+        ].contents = [];
+      } else {
+        console.log(`${folderName} ID was set:`, folderId);
       }
+      setLocalStorageWithExpiry(
+        'music_library_data',
+        JSON.stringify(this.collectionData),
+        604800000
+      );
     }
-
-    switch(folderName) {
-      case 'cd':
-        this.cdFolderId = folderId;
-        break;
-      case 'tape':
-        this.tapeFolderId = folderId;
-        break;
-      case 'vinyl':
-        this.vinylFolderId = folderId;
-        break;
-    }
-
-    setLocalStorageWithExpiry(
-      'music_library_data',
-      JSON.stringify(this.collectionData),
-      604800000
-    );
-
     this.requestUpdate();
   }
 
@@ -449,47 +437,36 @@ class MusicGrid extends LitElement {
           <wa-tab-group>
             ${repeat(
               this.collectionData.folders,
-              folder => folder.id,
+              folder => folder.handle,
               (folder, index) => html`
-                ${when(
-                  folder.contents?.length,
-                  () => html`
-                    <wa-tab
-                      slot="nav"
-                      panel="${folder.handle}"
-                      @click=${() => {
-                        this.originalFolder = folder
-                        this.selectedFolder = folder
-                      }}
-                    >
-                      ${folder.handle.toUpperCase()}
-                    </wa-tab>
-                  `,
-                  () => nothing
-                )}
+                <wa-tab
+                  slot="nav"
+                  panel="${folder.handle}"
+                  class=${classMap({
+                    'hidden': !folder.contents.length,
+                  })}
+                  @click=${() => {
+                    this.originalFolder = folder
+                    this.selectedFolder = folder
+                  }}
+                >
+                  ${folder.handle.toUpperCase()}
+                </wa-tab>
               `
             )}
             ${repeat(
               this.collectionData.folders,
-              folder => folder.id,
+              folder => folder.handle,
               (folder, index) => html`
-                ${when(
-                  folder.contents?.length,
-                  () => html`
-                    ${when(
-                      folder.contents?.length,
-                      () => html`
-                        <wa-tab-panel
-                          name="${folder.handle}"
-                        >
-                          ${this._renderRecent()}
-                          ${this._renderList()}
-                        </wa-tab-panel>
-                      `,
-                      () => nothing
-                    )}
-                  `
-                )}
+                <wa-tab-panel
+                  name="${folder.handle}"
+                  class=${classMap({
+                    'hidden': !folder.contents.length,
+                  })}
+                >
+                  ${this._renderRecent()}
+                  ${this._renderList()}
+                </wa-tab-panel>
               `
             )}
           </wa-tab-group>
@@ -589,10 +566,16 @@ class MusicGrid extends LitElement {
       wa-tab[id="wa-tab-2"] {
         background-color: var(--color-scrub);
       }
+      wa-tab[id="wa-tab-3"] {
+        background-color: var(--color-tan);
+      }
+      wa-tab:not(.hidden):has(+ wa-tab.hidden) {
+        box-shadow: var(--spacing-1) var(--spacing-1) 0 var(--color-dark-primary);
+      }
       wa-tab-panel {
         background-color: var(--color-sand);
         border-radius: 0 var(--wa-panel-border-radius) var(--wa-panel-border-radius);
-        box-shadow: var(--spacing) var(--spacing) 0 var(--color-dark-primary);
+        box-shadow: var(--spacing-1) var(--spacing-1) 0 var(--color-dark-primary);
         padding: 0 var(--spacing-2);
 
         @media screen and (min-width: 640px) {
@@ -604,6 +587,9 @@ class MusicGrid extends LitElement {
       }
       wa-tab-panel[id="wa-tab-panel-2"] {
         background-color: var(--color-scrub);
+      }
+      wa-tab-panel[id="wa-tab-panel-3"] {
+        background-color: var(--color-tan);
       }
       wa-tab-panel::part(base) {
         padding: var(--spacing-2);

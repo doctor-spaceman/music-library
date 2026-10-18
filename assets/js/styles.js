@@ -35,9 +35,9 @@ export const typography = css`
     margin: 0; 
   }
   code {
-    border-radius: var(--spacing);
+    border-radius: var(--spacing-1);
     background-color: var(--color-light-gray);
-    padding: calc(var(--spacing) / 2) var(--spacing-2);
+    padding: calc(var(--spacing-1) / 2) var(--spacing-2);
     text-wrap: nowrap;
   }
 `;

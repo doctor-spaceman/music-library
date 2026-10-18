@@ -77,7 +77,7 @@ class MusicCard extends LitElement {
         margin: var(--spacing-2) 0;
       }
       .record__artist {
-        margin: var(--spacing) 0;
+        margin: var(--spacing-1) 0;
       }
       .record__release-year {
         align-self: flex-end;
