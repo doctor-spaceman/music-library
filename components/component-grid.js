@@ -42,6 +42,10 @@ class MusicGrid extends LitElement {
       type: Object,
       state: true
     },
+    randomResult: {
+      type: Object,
+      state: true
+    },
     username: {
       type: String,
       state: true
@@ -77,6 +81,7 @@ class MusicGrid extends LitElement {
         }
       ]
     };
+    this.randomResult = {};
     this.username = getLocalStorageWithExpiry('music_library_user') || '';
     if (this.username.length) {
       this._setupGrid();
@@ -305,17 +310,14 @@ class MusicGrid extends LitElement {
   }, 800)
 
   _pickRandom() {
-    this._resetList();
-    const randomResult = this.selectedFolder.contents[
-      Math.floor(
-        Math.random() * this.selectedFolder.contents.length
-      )
-    ];
-    this.selectedFolder = { ...this.selectedFolder, contents: [randomResult] };
+    const randomIndex = Math.floor(
+      Math.random() * this.selectedFolder.contents.length
+    );
+    this.randomResult = this.selectedFolder.contents[randomIndex];
   }
 
   _resetList() {
-    this.selectedFolder = this.originalFolder;
+    this.randomResult = {};
   }
 
   _resetInput(event) {
@@ -403,16 +405,30 @@ class MusicGrid extends LitElement {
               this.selectedFolder?.contents?.length,
               () => html`
                 <ul class="list list--grid flex">
-                  ${repeat(
-                    this._sortByArtist(this.selectedFolder),
-                    artist => artist,
-                    artist => html`
+                  ${when(
+                    Object.keys(this.randomResult)?.length,
+                    () => html`
+                      <li>
+                        <music-card .record=${this.randomResult}></music-card>
+                      </li>
+                    `,
+                    () => html`
                       ${repeat(
-                        this.selectedFolder.contents.filter(
-                          record => record.artist === artist
-                        ).sort((a, b) => a.year - b.year),
-                        record => record.id,
-                        record => html`<li><music-card .record=${record}></music-card></li>`
+                        this._sortByArtist(this.selectedFolder),
+                        artist => artist,
+                        artist => html`
+                          ${repeat(
+                            this.selectedFolder.contents.filter(
+                              record => record.artist === artist
+                            ).sort((a, b) => a.year - b.year),
+                            record => record.id,
+                            record => html`
+                              <li>
+                                <music-card .record=${record}></music-card>
+                              </li>
+                            `
+                          )}
+                        `
                       )}
                     `
                   )}
