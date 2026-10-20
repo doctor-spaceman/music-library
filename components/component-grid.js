@@ -1,4 +1,4 @@
-import { LitElement, classMap, css, html, nothing, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
+import { LitElement, classMap, createRef, css, html, nothing, ref, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
 import { structure, theme, typography, utilities } from '../assets/js/styles.js';
 import { debounce, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/accordion/accordion.js';
@@ -38,12 +38,24 @@ class MusicGrid extends LitElement {
       type: String,
       state: true
     },
+    filteredFolder: {
+      type: Object,
+      state: true
+    },
+    originalFolder: {
+      type: Object,
+      state: true
+    },
     selectedFolder: {
       type: Object,
       state: true
     },
     randomResult: {
       type: Object,
+      state: true
+    },
+    searchQuery: {
+      type: String,
       state: true
     },
     username: {
@@ -59,6 +71,9 @@ class MusicGrid extends LitElement {
     this.dataReady = false;
     this.requesting = false;
     this.requestFailed = false;
+    this.filteredFolder = {};
+    this.originalFolder = {};
+    this.selectedFolder = {};
     this.cdFolderId = '';
     this.tapeFolderId = '';
     this.vinylFolderId = '';
@@ -82,6 +97,7 @@ class MusicGrid extends LitElement {
       ]
     };
     this.randomResult = {};
+    this.searchQuery = '';
     this.username = getLocalStorageWithExpiry('music_library_user') || '';
     if (this.username.length) {
       this._setupGrid();
@@ -112,6 +128,8 @@ class MusicGrid extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+
+    // TODO: this.$collectionConfig.removeEventListener
   }
 
   updated(changedProperties) {
@@ -229,6 +247,7 @@ class MusicGrid extends LitElement {
         const selectedFolder = this.collectionData.folders.find(folder => folder.id === folderId);
         selectedFolder.contents = folderContents;
         this.selectedFolder = selectedFolder;
+        this.originalFolder = this.selectedFolder;
         this.dataReady = true;
         this.requestUpdate();
         this.renderRoot.querySelector('wa-tab-group')?.setAttribute('active', folderName);
@@ -295,9 +314,6 @@ class MusicGrid extends LitElement {
   }
 
   _searchList = debounce((query) => {
-    this._resetList();
-    this.originalFolder = structuredClone(this.selectedFolder);
-    
     const queryLowerCased = query.toLowerCase();
     const filteredContents = this.selectedFolder.contents.filter(
       (record) => {
@@ -306,22 +322,49 @@ class MusicGrid extends LitElement {
         return artistLowerCased.includes(queryLowerCased) || titleLowerCased.includes(queryLowerCased);
       }
     );
-    this.selectedFolder = { ...this.selectedFolder, contents: filteredContents };
+    this.filteredFolder = { ...this.selectedFolder, contents: filteredContents };
   }, 800)
 
-  _pickRandom() {
+  _pickRandom = () => {
+    this._handleReset()
     const randomIndex = Math.floor(
       Math.random() * this.selectedFolder.contents.length
     );
-    this.randomResult = this.selectedFolder.contents[randomIndex];
+    const filteredContents = this.selectedFolder.contents[randomIndex];
+    this.filteredFolder = { ...this.selectedFolder, contents: [filteredContents] };
   }
 
-  _resetList() {
-    this.randomResult = {};
+  _handleTabClick = (clickedFolder) => {
+    this.originalFolder = clickedFolder;
+    this.selectedFolder = clickedFolder;
   }
 
-  _resetInput(event) {
-    event.target.closest('.list-actions').querySelector('.list-actions__search').value = '';
+  _handleReset = () => {
+    this.searchQuery = '';
+    this.filteredFolder = {};
+    this.selectedFolder = this.originalFolder;
+  }
+
+  _renderCards(list) {
+    return html`
+      ${repeat(
+        this._sortByArtist(list),
+        artist => artist,
+        artist => html`
+          ${repeat(
+            list.contents.filter(
+              record => record.artist === artist
+            ).sort((a, b) => a.year - b.year),
+            record => record.id,
+            record => html`
+              <li>
+                <music-card .record=${record}></music-card>
+              </li>
+            `
+          )}
+        `
+      )}
+    `
   }
 
   _renderRecent() {
@@ -367,10 +410,15 @@ class MusicGrid extends LitElement {
         <wa-input
           class="list-actions__search"
           label="Search by artist or album title"
-          clearable
           pill
-          @input=${(e) => this._searchList(e.target.value)}
-          @wa-clear=${() => this.selectedFolder = this.originalFolder}
+          type="search"
+          .value=${this.searchQuery}
+          with-clear
+          @input=${(e) => {
+            this.searchQuery = e.target.value
+            this._searchList(e.target.value)
+          }}
+          @wa-clear=${this._handleReset}
         ></wa-input>
         <div class="flex">
           <wa-button
@@ -381,10 +429,7 @@ class MusicGrid extends LitElement {
           </wa-button>
           <wa-button
             class="list-actions__reset"
-            @click=${(e) => {
-              this._resetList()
-              this._resetInput(e)
-            }}
+            @click=${this._handleReset}
           >
             Reset
           </wa-button>
@@ -406,31 +451,9 @@ class MusicGrid extends LitElement {
               () => html`
                 <ul class="list list--grid flex">
                   ${when(
-                    Object.keys(this.randomResult)?.length,
-                    () => html`
-                      <li>
-                        <music-card .record=${this.randomResult}></music-card>
-                      </li>
-                    `,
-                    () => html`
-                      ${repeat(
-                        this._sortByArtist(this.selectedFolder),
-                        artist => artist,
-                        artist => html`
-                          ${repeat(
-                            this.selectedFolder.contents.filter(
-                              record => record.artist === artist
-                            ).sort((a, b) => a.year - b.year),
-                            record => record.id,
-                            record => html`
-                              <li>
-                                <music-card .record=${record}></music-card>
-                              </li>
-                            `
-                          )}
-                        `
-                      )}
-                    `
+                    Object.keys(this.filteredFolder)?.length,
+                    () => this._renderCards(this.filteredFolder),
+                    () => this._renderCards(this.selectedFolder)
                   )}
                 </ul>
               `,
@@ -461,10 +484,7 @@ class MusicGrid extends LitElement {
                   class=${classMap({
                     'hidden': !folder.contents.length,
                   })}
-                  @click=${() => {
-                    this.originalFolder = folder
-                    this.selectedFolder = folder
-                  }}
+                  @click=${() => this._handleTabClick(folder)}
                 >
                   ${folder.handle.toUpperCase()}
                 </wa-tab>

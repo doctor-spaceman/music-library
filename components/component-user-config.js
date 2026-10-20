@@ -136,7 +136,7 @@ class MusicUserConfig extends LitElement {
     ));
   }
 
-  _handleInput = (event, folderName) => {
+  _handleInput = debounce((event, folderName) => {
     const inputValue = event.target?.value;
     const $errorMessage = event.target.closest(
       `[data-folder=${folderName}]`
@@ -163,7 +163,7 @@ class MusicUserConfig extends LitElement {
         $inputButton.disabled = false
       }
     }
-  }
+  }, 800)
 
   _renderFolderAction(folderName, folderId) {
     console.log(folderName, folderId)
@@ -195,7 +195,7 @@ class MusicUserConfig extends LitElement {
               <wa-input
                 inputmode="numeric"
                 placeholder="${folderName} folder ID"
-                @input=${(e) => debounce(this._handleInput(e, folderName), 500)}
+                @input=${(e) => this._handleInput(e, folderName)}
               >
                 <slot name="label" class="sr-only">
                   ${folderName} folder ID
