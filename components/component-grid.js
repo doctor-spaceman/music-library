@@ -335,6 +335,7 @@ class MusicGrid extends LitElement {
   }
 
   _handleTabClick = (clickedFolder) => {
+    this._handleReset()
     this.originalFolder = clickedFolder;
     this.selectedFolder = clickedFolder;
   }

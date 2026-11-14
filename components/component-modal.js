@@ -28,7 +28,7 @@ class MusicModal extends LitElement {
 
   updated(changedProperties) {
     if (changedProperties.has('requestFailed')) {
-      console.log('Request failed updated in modal', this.requestFailed)   
+      console.log('this.requestFailed updated in modal:', this.requestFailed)   
     }
   }
 

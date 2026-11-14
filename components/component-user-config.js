@@ -27,6 +27,8 @@ class MusicUserConfig extends LitElement {
   constructor() {
     super();
 
+    this.authToken = null;
+    this.authVerifier = null;
     this.$usernameInputRef = createRef();
     this.username = getLocalStorageWithExpiry('music_library_user') || '';
     this.cdFolderId = '';
@@ -37,6 +39,8 @@ class MusicUserConfig extends LitElement {
   connectedCallback() {
     super.connectedCallback();
 
+    this._authorize();
+
     this.$musicGrid = document.querySelector('music-grid');
     this.cdFolderId = this._getFolderId('cd');
     this.tapeFolderId = this._getFolderId('tape');
@@ -45,6 +49,62 @@ class MusicUserConfig extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+  }
+
+  _authorize = async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    const tokenFromStorage = window.localStorage.getItem('music_library_oauth_token');
+    this.authToken = tokenFromStorage;
+    // Overwrite if coming from auth redirect
+    const tokenFromParams = urlParams.has('oauth_token') ? urlParams.get('oauth_token') : null;
+    if (tokenFromParams) {
+      this.authToken = tokenFromParams;
+      try {
+        window.localStorage.setItem('music_library_oauth_token', JSON.stringify(this.authToken));
+      } catch (error) {
+        console.warn('Could not add music_library_oauth_token to localStorage')
+      }
+    }
+
+    const verifierFromStorage = window.localStorage.getItem('music_library_oauth_verifier') || null;
+    this.authVerifier = verifierFromStorage;
+    // Overwrite if coming from auth redirect
+    const verifierFromParams = urlParams.has('oauth_verifier') ? urlParams.get('oauth_verifier') : null;
+    if (verifierFromParams) {
+      this.authVerifier = verifierFromParams;
+      try {
+        window.localStorage.setItem('music_library_oauth_verifier', JSON.stringify(this.authVerifier));
+      } catch (error) {
+        console.warn('Could not add music_library_oauth_verifier to localStorage')
+      }
+      // TODO: Exchange token request
+      // Call Google Cloud Run again and execute the other API call to Discogs
+      // Attach the resulting key and secret to all subsequent Discogs API calls
+      // const authResponse = await fetch('https://discogs-oauth-irmuxojohq-wl.a.run.app', {
+      //   Content-Type: 'text/javascript',
+      //   body: JSON.stringify({
+      //     request_type: 'auth_token'
+      //   })
+      // });
+    }
+
+    if (!this.authToken && !this.authVerifier) {
+      const response = await fetch('https://discogs-oauth-irmuxojohq-wl.a.run.app', {
+        'Content-Type': 'text/javascript',
+        body: JSON.stringify({
+          request_type: 'request_token'
+        })
+      });
+      if (response?.ok) {
+        const responseParsed = await response.text()
+        const requestToken = responseParsed?.split('oauth_token=')[1].split('&')[0]
+        console.log('this.requestToken:', requestToken);
+        if (requestToken) {
+          window.location = `https://www.discogs.com/oauth/authorize?oauth_token=${requestToken}`;
+        }
+      }
+    }
   }
 
   _clearUsername = () => {
