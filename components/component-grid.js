@@ -98,6 +98,7 @@ class MusicGrid extends LitElement {
 
   updated(changedProperties) {
     if (changedProperties.has('requesting')) {
+      console.log(this.requesting)
       if (this.$modal) {
         if (this.requesting) {
           this.$modal.classList.remove('hidden');
@@ -117,30 +118,30 @@ class MusicGrid extends LitElement {
   }
 
   _setupGrid = async () => {
-    // Check if we already have unexpired data
     this.currentDate = new Date();
+    this.requesting = true;
+
+    // Check if we already have unexpired data
     const storedMusicLibraryData = getLocalStorageWithExpiry('music_library_data');
     if (!storedMusicLibraryData) {
       await this._getFolders();
-      for (const folder of this.collectionData.folders) {
-        const mappedFolderContents = this._mapItemData(folder.contents);
-        folder.contents = mappedFolderContents;
+      if (this.collectionData.folders.length) {
+        this._organizeFolders();
+        console.log(this.collectionData.folders)
       }
-      console.log(this.collectionData.folders)
     } else {
       if (Object.keys(storedMusicLibraryData)?.length) {
         this.collectionData = storedMusicLibraryData;
-        for (const folder of this.collectionData.folders) {
-          const mappedFolderContents = this._mapItemData(folder.contents);
-          folder.contents = mappedFolderContents;
-        }
+        this.requesting = false;
         console.log("Data loaded from storage");
-        console.log(this.collectionData.folders);
-        if (Object.keys(this.collectionData).length) {
+        if (this.collectionData.folders.length) {
+          this._organizeFolders();
+          console.log(this.collectionData.folders);
           this.originalFolder = this.collectionData.folders.find(folder => folder.contents.length);
-          this.selectedFolder = this.collectionData.folders.find(folder => folder.contents.length);
-          this.dataReady = true;
+          this.selectedFolder = this.originalFolder;
         }
+      } else {
+        this.requestFailed = true;
       }
     }
   }
@@ -155,8 +156,6 @@ class MusicGrid extends LitElement {
 
   _getFolders = async () => {
     try {
-      this.requesting = true;
-      let folders = {};
       const foldersResponse = await fetch(this.cloudUrl, {
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
@@ -169,7 +168,6 @@ class MusicGrid extends LitElement {
       });
       if (foldersResponse) {
         this.collectionData = await foldersResponse.json();
-        this.dataReady = true;
         this.requestUpdate();
         this.renderRoot.querySelector('wa-tab-group')?.setAttribute('active', folderName);
         console.log("Data loaded from API");
@@ -187,6 +185,14 @@ class MusicGrid extends LitElement {
       this.requestFailed = true;
       this.requesting = false;
     }
+  }
+
+  _organizeFolders = () => {
+    for (const folder of this.collectionData.folders) {
+      const mappedFolderContents = this._mapItemData(folder.contents);
+      folder.contents = mappedFolderContents;
+    }
+    this.dataReady = true;
   }
 
   _mapItemData(data) {
