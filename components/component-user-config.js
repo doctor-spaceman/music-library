@@ -146,8 +146,12 @@ class MusicUserConfig extends LitElement {
     if (identityResponse) {
       identity = await identityResponse.json();
       if (identity) {
-        console.log(identity)
         this.username = identity.username;
+        this.dispatchEvent(new CustomEvent('music-library:user-changed', {
+          detail: {
+            username: this.username,
+          }
+        }));
       }
     }
   }
@@ -166,6 +170,11 @@ class MusicUserConfig extends LitElement {
 
   _logout = () => {
     this.username = '';
+    this.dispatchEvent(new CustomEvent('music-library:user-changed', {
+      detail: {
+        username: this.username,
+      }
+    }));
     window.localStorage.removeItem('music_library_oauth_token');
     window.localStorage.removeItem('music_library_oauth_token_secret');
   }
@@ -185,7 +194,7 @@ class MusicUserConfig extends LitElement {
     )?.querySelector(
       '.user-actions__input-folder wa-input'
     );
-    
+
     const currentInputValue = $currentInput?.value
     if (currentInputValue?.length) {
       switch(folderName) {

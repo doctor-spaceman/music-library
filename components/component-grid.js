@@ -26,18 +26,6 @@ class MusicGrid extends LitElement {
       type: Object,
       state: true
     },
-    cdFolderId: {
-      type: String,
-      state: true
-    },
-    tapeFolderId: {
-      type: String,
-      state: true
-    },
-    vinylFolderId: {
-      type: String,
-      state: true
-    },
     filteredFolder: {
       type: Object,
       state: true
@@ -67,6 +55,10 @@ class MusicGrid extends LitElement {
   constructor() {
     super();
 
+    this.apiOrigin = 'https://api.discogs.com';
+    this.cloudUrl = 'https://discogs-oauth-irmuxojohq-wl.a.run.app';
+    this.userAgent = 'MusicLibrary/1.0 +https://mattmclean.net';
+
     this.currentDate = new Date();
     this.dataReady = false;
     this.requesting = false;
@@ -74,62 +66,34 @@ class MusicGrid extends LitElement {
     this.filteredFolder = {};
     this.originalFolder = {};
     this.selectedFolder = {};
-    this.cdFolderId = '';
-    this.tapeFolderId = '';
-    this.vinylFolderId = '';
-    this.collectionData = {
-      folders: [
-        {
-          'handle': 'vinyl',
-          'id': this.vinylFolderId, 
-          'contents': []
-        },
-        {
-          'handle': 'cd',
-          'id': this.cdFolderId, 
-          'contents': []
-        },
-        {
-          'handle': 'tape',
-          'id': this.tapeFolderId, 
-          'contents': []
-        }
-      ]
-    };
+    this.collectionData = { folders: [] };
     this.randomResult = {};
     this.searchQuery = '';
-    this.username = getLocalStorageWithExpiry('music_library_user') || '';
-    if (this.username.length) {
-      this._setupGrid();
-    }
+    this.username = '';
   }
 
   connectedCallback() {
     super.connectedCallback();
 
     this.$modal = document.querySelector('music-modal');
-    this.$collectionConfig = document.querySelector('music-user-config');
-    this.$collectionConfig.addEventListener('music-library:user-changed', (event) => {
-      this.username = event.detail?.username;
-      if (this.username?.length) {
-        this._setupGrid();
-      } else {
-        this._clearGrid();
+    this.$userConfig = document.querySelector('music-user-config');
+    this.$userConfig.addEventListener(
+      'music-library:user-changed',
+      (event) => {
+        this.username = event.detail?.username;
+        if (this.username?.length) {
+          this._setupGrid();
+        } else {
+          this._clearGrid();
+        }
       }
-    })
-    this.$collectionConfig.addEventListener('music-library:folder-id-added', (event) => {
-      this._setFolderId(event.detail?.folderName, event.detail?.folderId);
-      this._getFolderContents(event.detail?.folderName, event.detail?.folderId);
-    });
-    this.$collectionConfig.addEventListener('music-library:folder-id-cleared', (event) => {
-      this._setFolderId(event.detail?.folderName, '');
-    });
+    );
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
 
-    // TODO: this.$collectionConfig.removeEventListener
+    // TODO: this.$userConfig.removeEventListener
   }
 
   updated(changedProperties) {
@@ -155,27 +119,28 @@ class MusicGrid extends LitElement {
   _setupGrid = async () => {
     // Check if we already have unexpired data
     this.currentDate = new Date();
-    const musicLibraryData = getLocalStorageWithExpiry('music_library_data');
-    if (!musicLibraryData) {
-      return
-    }
-
-    if (Object.keys(musicLibraryData)?.length) {
-      this.collectionData = musicLibraryData;
-      console.log("Data loaded from storage");
-      if (Object.keys(this.collectionData).length) {
-        console.log(this.collectionData.folders);
-        this.originalFolder = this.collectionData.folders.find(folder => folder.contents.length);
-        this.selectedFolder = this.collectionData.folders.find(folder => folder.contents.length);
-        if (this.$collectionConfig) {
-          this._setFolderId('cd', this.collectionData.folders.find(folder => folder.handle === 'cd').id);
-          this._setFolderId('tape', this.collectionData.folders.find(folder => folder.handle === 'tape').id);
-          this._setFolderId('vinyl', this.collectionData.folders.find(folder => folder.handle === 'vinyl').id);
-          this.$collectionConfig.cdFolderId = this.cdFolderId;
-          this.$collectionConfig.tapeFolderId = this.tapeFolderId;
-          this.$collectionConfig.vinylFolderId = this.vinylFolderId;
+    const storedMusicLibraryData = getLocalStorageWithExpiry('music_library_data');
+    if (!storedMusicLibraryData) {
+      await this._getFolders();
+      for (const folder of this.collectionData.folders) {
+        const mappedFolderContents = this._mapItemData(folder.contents);
+        folder.contents = mappedFolderContents;
+      }
+      console.log(this.collectionData.folders)
+    } else {
+      if (Object.keys(storedMusicLibraryData)?.length) {
+        this.collectionData = storedMusicLibraryData;
+        for (const folder of this.collectionData.folders) {
+          const mappedFolderContents = this._mapItemData(folder.contents);
+          folder.contents = mappedFolderContents;
         }
-        this.dataReady = true;
+        console.log("Data loaded from storage");
+        console.log(this.collectionData.folders);
+        if (Object.keys(this.collectionData).length) {
+          this.originalFolder = this.collectionData.folders.find(folder => folder.contents.length);
+          this.selectedFolder = this.collectionData.folders.find(folder => folder.contents.length);
+          this.dataReady = true;
+        }
       }
     }
   }
@@ -186,73 +151,28 @@ class MusicGrid extends LitElement {
       this._setFolderId(folder.handle, '');
     }
     window.localStorage?.removeItem('music_library_data');
-    window.localStorage?.removeItem('music_library_user');
   }
 
-  _setFolderId = (folderName, folderId) => {
-    const folderToUpdate = this.collectionData.folders.find(folder => folder.handle === folderName);
-    if (folderToUpdate) {
-      this.collectionData.folders[
-        this.collectionData.folders.indexOf(folderToUpdate)
-      ].id = folderId;
-      if (folderId === '') {
-        console.log(`${folderName} ID was cleared`);
-        this.collectionData.folders[
-          this.collectionData.folders.indexOf(folderToUpdate)
-        ].contents = [];
-      } else {
-        console.log(`${folderName} ID was set:`, folderId);
-      }
-      setLocalStorageWithExpiry(
-        'music_library_data',
-        JSON.stringify(this.collectionData),
-        604800000
-      );
-    }
-    this.requestUpdate();
-  }
-
-  _getFolderContents = async (folderName, folderId) => {
-    let firstPage;
-    let firstPageData;
-    let nextPage;
-    let nextPageData;
-    let folderContents = [];
-
-    // Get first page of results
+  _getFolders = async () => {
     try {
       this.requesting = true;
-
-      if (folderId) {
-        firstPageData = await fetch(
-          `https://api.discogs.com/users/${this.username}/collection/folders/${folderId}/releases?page=1&per_page=100&sort=artist`
-        );
-      }
-
-      if (firstPageData) {
-        firstPage = await firstPageData.json();
-        folderContents = this._mapItemData(firstPage);
-
-        // Get subsequent pages
-        for (let page = 2; page <= firstPage.pagination.pages; page++) {
-          nextPageData = await fetch(
-            `https://api.discogs.com/users/${this.username}/collection/folders/${folderId}/releases?page=${page}&per_page=100&sort=artist`
-          );
-          if (nextPageData) {
-            nextPage = await nextPageData.json();
-            folderContents = [...folderContents, ...this._mapItemData(nextPage)];
-          }
-        }
-
-        const selectedFolder = this.collectionData.folders.find(folder => folder.id === folderId);
-        selectedFolder.contents = folderContents;
-        this.selectedFolder = selectedFolder;
-        this.originalFolder = this.selectedFolder;
+      let folders = {};
+      const foldersResponse = await fetch(this.cloudUrl, {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          requestType: 'folders',
+          token: this.$userConfig.authToken,
+          tokenSecret: this.$userConfig.authTokenSecret,
+          username: this.username,
+        }),
+      });
+      if (foldersResponse) {
+        this.collectionData = await foldersResponse.json();
         this.dataReady = true;
         this.requestUpdate();
         this.renderRoot.querySelector('wa-tab-group')?.setAttribute('active', folderName);
         console.log("Data loaded from API");
-        console.log(this.collectionData)
         // Store data in localStorage with 7d expiry
         setLocalStorageWithExpiry(
           'music_library_data',
@@ -270,7 +190,7 @@ class MusicGrid extends LitElement {
   }
 
   _mapItemData(data) {
-    return data?.releases?.map((release) => {
+    return data?.map((release) => {
       let artist = release.basic_information.artists[0].name
       if (artist.startsWith(`'`)) {
         artist = artist.replace(`'`, "");
@@ -477,26 +397,26 @@ class MusicGrid extends LitElement {
           <wa-tab-group>
             ${repeat(
               this.collectionData.folders,
-              folder => folder.handle,
+              folder => folder.name,
               (folder, index) => html`
                 <wa-tab
                   slot="nav"
-                  panel="${folder.handle}"
+                  panel="${folder.name}"
                   class=${classMap({
                     'hidden': !folder.contents.length,
                   })}
                   @click=${() => this._handleTabClick(folder)}
                 >
-                  ${folder.handle.toUpperCase()}
+                  ${folder.name.toUpperCase()}
                 </wa-tab>
               `
             )}
             ${repeat(
               this.collectionData.folders,
-              folder => folder.handle,
+              folder => folder.name,
               (folder, index) => html`
                 <wa-tab-panel
-                  name="${folder.handle}"
+                  name="${folder.name}"
                   class=${classMap({
                     'hidden': !folder.contents.length,
                   })}
