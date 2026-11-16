@@ -1,7 +1,6 @@
 import { LitElement, createRef, css, html, ref, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
 import { buttons, structure, typography, utilities } from '../assets/js/styles.js';
-import { debounce, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
-import { UUID } from '../assets/js/vendor-uuid.js';
+import { debounce } from '../assets/js/utils.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/button/button.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/input/input.js';
 
@@ -14,33 +13,17 @@ class MusicUserConfig extends LitElement {
     username: {
       type: String,
       state: true
-    },
-    cdFolderId: {
-      type: String,
-      state: true
-    },
-    tapeFolderId: {
-      type: String,
-      state: true
-    },
-    vinylFolderId: {
-      type: String,
-      state: true
-    },
+    }
   }
 
   constructor() {
     super();
 
     this.authorized = false;
-    this.apiOrigin = 'https://api.discogs.com';
     this.cloudUrl = 'https://discogs-oauth-irmuxojohq-wl.a.run.app';
     this.userAgent = 'MusicLibrary/1.0 +https://mattmclean.net';
     this.$usernameInputRef = createRef();
     this.username = '';
-    this.cdFolderId = '';
-    this.tapeFolderId = '';
-    this.vinylFolderId = '';
   }
 
   connectedCallback() {
@@ -49,19 +32,17 @@ class MusicUserConfig extends LitElement {
     this.authVerifier = this._setAuthValue('verifier');
     this.authToken = this._setAuthValue('token');
     this.authTokenSecret = this._setAuthValue('token_secret');
-    this._authorize();
+    window.history.replaceState({}, document.title, `${window.location.href.split('?')[0]}` );
+    this._authorizeAccess();
 
     this.$musicGrid = document.querySelector('music-grid');
-    this.cdFolderId = this._getFolderId('cd');
-    this.tapeFolderId = this._getFolderId('tape');
-    this.vinylFolderId = this._getFolderId('vinyl');
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
   }
 
-  _authorize = async () => {
+  _authorizeAccess = async () => {
     if (
       window.localStorage.getItem('music_library_oauth_token') &&
       window.localStorage.getItem('music_library_oauth_token_secret')
@@ -86,14 +67,20 @@ class MusicUserConfig extends LitElement {
           })
         });
         if (authResponse.ok) {
-          const authResponseParsed = await authResponse.json();
-          this.authorized = true;
-          try {
-            // Persist these; they won't expire unless user revokes access
-            window.localStorage.setItem('music_library_oauth_token', JSON.stringify(authResponseParsed.oauth_token));
-            window.localStorage.setItem('music_library_oauth_token_secret', JSON.stringify(authResponseParsed.oauth_token_secret));
-          } catch (error) {
-            console.warn('Could not add API credentials to localStorage.')
+          const authResponseParsed = await authResponse.text();
+          this.authToken = authResponseParsed?.split('oauth_token=')[1]?.split('&')[0];
+          this.authTokenSecret = authResponseParsed?.split('oauth_token_secret=')[1]?.split('&')[0];
+          if (this.authTokenSecret && this.authTokenSecret) {
+            try {
+              // Persist these; they won't expire unless user revokes access
+              window.localStorage.setItem('music_library_oauth_token', JSON.stringify(this.authToken));
+              window.localStorage.setItem('music_library_oauth_token_secret', JSON.stringify(this.authTokenSecret));
+              this.authorized = true;
+              this._getIdentity();
+            } catch (error) {
+              console.warn('Could not add API credentials to localStorage.')
+              console.log(error.message)
+            }
           }
         } else {
           if (authResponse.status === 401) {
@@ -108,51 +95,58 @@ class MusicUserConfig extends LitElement {
       } catch (error) {
         console.warn(error.message);
       }
-    } else {
-      // request token
-      const response = await fetch(this.cloudUrl, {
-        headers: { 'Content-Type': 'application/json' },
-        method: 'POST',
-        body: JSON.stringify({
-          requestType: 'request'
-        }),
-      });
-      if (response?.ok) {
-        const responseParsed = await response.json()
-        if (responseParsed) {
-          console.log('responseParsed:', responseParsed);
-          try {
-            window.localStorage.setItem('music_library_oauth_token_secret', JSON.stringify(responseParsed.oauth_token_secret));
-          } catch (error) {
-            console.warn('Could not add API credentials to localStorage.')
-          }
-          window.location = `${this.apiOrigin}/oauth/authorize?oauth_token=${responseParsed.oauth_token}`;
+    }
+  }
+
+  _authorizeRequest = async () => {
+    // request token
+    const response = await fetch(this.cloudUrl, {
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      body: JSON.stringify({
+        requestType: 'request'
+      }),
+    });
+    if (response?.ok) {
+      const responseParsed = await response.json()
+      if (responseParsed) {
+        console.log('responseParsed:', responseParsed);
+        try {
+          window.localStorage.setItem('music_library_oauth_token_secret', JSON.stringify(responseParsed.oauth_token_secret));
+        } catch (error) {
+          console.warn('Could not add API credentials to localStorage.')
         }
+        window.location = `https://www.discogs.com/oauth/authorize?oauth_token=${responseParsed.oauth_token}`;
       }
     }
   }
 
   _getIdentity = async () => {
-    let identity = {};
-    const identityResponse = await fetch(this.cloudUrl, {
-      headers: { 'Content-Type': 'application/json' },
-      method: 'POST',
-      body: JSON.stringify({
-        requestType: 'identity',
-        token: this.authToken,
-        tokenSecret: this.authTokenSecret,
-      }),
-    });
-    if (identityResponse) {
-      identity = await identityResponse.json();
-      if (identity) {
-        this.username = identity.username;
-        this.dispatchEvent(new CustomEvent('music-library:user-changed', {
-          detail: {
-            username: this.username,
-          }
-        }));
+    try {
+      let identity = {};
+      const identityResponse = await fetch(this.cloudUrl, {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          requestType: 'identity',
+          token: this.authToken,
+          tokenSecret: this.authTokenSecret,
+        }),
+      });
+      if (identityResponse) {
+        identity = await identityResponse.json();
+        if (identity) {
+          this.username = identity.username;
+          this.dispatchEvent(new CustomEvent('music-library:user-changed', {
+            detail: {
+              username: this.username,
+            }
+          }));
+        }
       }
+    } catch (error) {
+      console.warn('Identity verification failed');
+      console.log(error.message);
     }
   }
 
@@ -177,79 +171,6 @@ class MusicUserConfig extends LitElement {
     }));
     window.localStorage.removeItem('music_library_oauth_token');
     window.localStorage.removeItem('music_library_oauth_token_secret');
-  }
-
-  _getFolderId = (folderName) => {
-    if (!this.$musicGrid) {
-      return;
-    }
-    return this.$musicGrid.collectionData?.folders?.find(
-      folder => folder.handle === folderName
-    )?.id;
-  }
-
-  _addFolder = (event, folderName) => {
-    const $currentInput = event.target?.closest(
-      `.collection-item__folder[data-folder=${folderName}]`
-    )?.querySelector(
-      '.user-actions__input-folder wa-input'
-    );
-
-    const currentInputValue = $currentInput?.value
-    if (currentInputValue?.length) {
-      switch(folderName) {
-        case 'cd':
-          this.cdFolderId = currentInputValue;
-          break;
-        case 'tape':
-          this.tapeFolderId = currentInputValue;
-          break;
-        case 'vinyl':
-          this.vinylFolderId = currentInputValue;
-          break;
-      }
-
-      this.dispatchEvent(new CustomEvent('music-library:folder-id-added', {
-        detail: {
-          folderName,
-          folderId: currentInputValue
-        }
-      }));
-    } else {
-      const $errorMessage = event.target.closest(
-        `[data-folder=${folderName}]`
-      )?.querySelector(
-        '.user-actions__input-error'
-      );
-      if ($errorMessage) {
-        $errorMessage.textContent = 'Please input the numeric folder ID';
-        $errorMessage.setAttribute('active', '');
-      }
-    }
-  }
-
-  _changeFolder = (event, folderName) => {
-    const $folderToChange = event.target?.closest(
-      `.collection-item__folder[data-folder=${folderName}]`
-    );
-    if ($folderToChange) {
-      switch(folderName) {
-        case 'cd':
-          this.cdFolderId = '';
-          break;
-        case 'tape':
-          this.tapeFolderId = '';
-          break;
-        case 'vinyl':
-          this.vinylFolderId = '';
-          break;
-      }
-    }
-
-    this.dispatchEvent(new CustomEvent(
-      'music-library:folder-id-cleared',
-      { detail: { folderName } },
-    ));
   }
 
   _handleInput = debounce((event, folderName) => {
@@ -300,7 +221,7 @@ class MusicUserConfig extends LitElement {
             <td class="flex flex-center">
               <wa-button
                 class="user-actions__change-folder button--simple"
-                @click=${(e) => this._changeFolder(e, folderName)}
+                @click=${(e) => console.log(e)}
               >
                 Change
               </wa-button>
@@ -311,7 +232,7 @@ class MusicUserConfig extends LitElement {
               <wa-input
                 inputmode="numeric"
                 placeholder="${folderName} folder ID"
-                @input=${(e) => this._handleInput(e, folderName)}
+                @input=${(e) => console.log(e)}
               >
                 <slot name="label" class="sr-only">
                   ${folderName} folder ID
@@ -322,7 +243,7 @@ class MusicUserConfig extends LitElement {
             <td class="flex flex-center">
               <wa-button
                 class="user-actions__add-folder button--simple"
-                @click=${(e) => this._addFolder(e, folderName)}
+                @click=${(e) => console.log(e)}
               >
                 Add
               </wa-button>
@@ -358,7 +279,7 @@ class MusicUserConfig extends LitElement {
             () => html`
               <wa-button
                 class="user-actions__login"
-                @click=${this._authorize}
+                @click=${this._authorizeRequest}
               >
                 Log In
               </wa-button>

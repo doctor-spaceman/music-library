@@ -16,7 +16,7 @@
 
   /*---Typography---*/  
   --font-primary: 'Monda', Helvetica, sans-serif;
-  --font-heading: 'Bungee Shade', Helvetica, sans-serif;
+  --font-heading: 'Lacquer', Helvetica, sans-serif;
   --font-p: calc(var(--size) * .875) var(--font-primary);
   --font-p-small: calc(var(--size) * .75) var(--font-primary);
   --font-p-xsmall:  calc(var(--size) * .63) var(--font-primary);

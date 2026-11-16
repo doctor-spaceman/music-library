@@ -1,4 +1,4 @@
-import { LitElement, classMap, createRef, css, html, nothing, ref, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
+import { LitElement, classMap, css, html, nothing, ref, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
 import { structure, theme, typography, utilities } from '../assets/js/styles.js';
 import { debounce, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/accordion/accordion.js';
@@ -79,21 +79,17 @@ class MusicGrid extends LitElement {
     this.$userConfig = document.querySelector('music-user-config');
     this.$userConfig.addEventListener(
       'music-library:user-changed',
-      (event) => {
-        this.username = event.detail?.username;
-        if (this.username?.length) {
-          this._setupGrid();
-        } else {
-          this._clearGrid();
-        }
-      }
+      this._handleUserChange,
     );
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
 
-    // TODO: this.$userConfig.removeEventListener
+    this.$userConfig.removeEventListener(
+      'music-library:user-changed',
+      this._handleUserChange,
+    );
   }
 
   updated(changedProperties) {
@@ -117,9 +113,18 @@ class MusicGrid extends LitElement {
     }
   }
 
+  _handleUserChange = (event) => {
+    this.username = event.detail?.username;
+    if (this.username?.length) {
+      this._setupGrid();
+    } else {
+      this._clearGrid();
+    }
+  }
+
   _setupGrid = async () => {
-    this.currentDate = new Date();
     this.requesting = true;
+    this.currentDate = new Date();
 
     // Check if we already have unexpired data
     const storedMusicLibraryData = getLocalStorageWithExpiry('music_library_data');
@@ -127,20 +132,17 @@ class MusicGrid extends LitElement {
       await this._getFolders();
       if (this.collectionData.folders.length) {
         this._organizeFolders();
-        console.log(this.collectionData.folders)
       }
     } else {
       if (Object.keys(storedMusicLibraryData)?.length) {
         this.collectionData = storedMusicLibraryData;
-        this.requesting = false;
         console.log("Data loaded from storage");
         if (this.collectionData.folders.length) {
           this._organizeFolders();
-          console.log(this.collectionData.folders);
-          this.originalFolder = this.collectionData.folders.find(folder => folder.contents.length);
-          this.selectedFolder = this.originalFolder;
+          this.requesting = false;
         }
       } else {
+        this.requesting = false;
         this.requestFailed = true;
       }
     }
@@ -148,9 +150,7 @@ class MusicGrid extends LitElement {
 
   _clearGrid = () => {
     this.dataReady = false;
-    for (const folder of this.collectionData.folders) {
-      this._setFolderId(folder.handle, '');
-    }
+    this.collectionData = { folders: [] };
     window.localStorage?.removeItem('music_library_data');
   }
 
@@ -192,6 +192,9 @@ class MusicGrid extends LitElement {
       const mappedFolderContents = this._mapItemData(folder.contents);
       folder.contents = mappedFolderContents;
     }
+    console.log(this.collectionData.folders);
+    this.originalFolder = this.collectionData.folders.find(folder => folder.contents.length);
+    this.selectedFolder = this.originalFolder;
     this.dataReady = true;
   }
 
@@ -305,7 +308,7 @@ class MusicGrid extends LitElement {
 
     return html`
       <section>
-        <h2>Recent Additions</h2>
+        <h2><em>Recent Additions</em></h2>
         ${when(
           this.dataReady,
           () => html`
@@ -368,7 +371,7 @@ class MusicGrid extends LitElement {
   _renderList() {
     return html`
       <section>
-        <h2>All Albums</h2>
+        <h2><em>All Albums</em></h2>
         ${when(
           this.dataReady,
           () => html`
@@ -404,7 +407,7 @@ class MusicGrid extends LitElement {
             ${repeat(
               this.collectionData.folders,
               folder => folder.name,
-              (folder, index) => html`
+              (folder) => html`
                 <wa-tab
                   slot="nav"
                   panel="${folder.name}"
@@ -413,14 +416,14 @@ class MusicGrid extends LitElement {
                   })}
                   @click=${() => this._handleTabClick(folder)}
                 >
-                  ${folder.name.toUpperCase()}
+                  <h2>${folder.name.toUpperCase()}</h2>
                 </wa-tab>
               `
             )}
             ${repeat(
               this.collectionData.folders,
               folder => folder.name,
-              (folder, index) => html`
+              (folder) => html`
                 <wa-tab-panel
                   name="${folder.name}"
                   class=${classMap({
@@ -435,15 +438,13 @@ class MusicGrid extends LitElement {
           </wa-tab-group>
         `,
         () => html`
-          <div class="setup-instructions">
-            <ol>
-              <li>In your Discogs collection, organize your items into folders by format (e.g. "Vinyl", "CD").</li>
-              <li>Go in to each folder and note the folder ID in the browser address bar.<br>
-                You want the number after <code>?folder=</code> in the URL.
-              </li>
-              <li>Enter the IDs in the appropriate fields and click "Add" to fetch your items!</li>
-            </ol>
-          </div>
+          <p class="intro">
+            ${when(
+              this.requesting,
+              () => html`Requesting data ...`,
+              () => html`Click "Log In" and authorize this app to use your Discogs account!`,
+            )}
+          </p>
         `
       )}
     `;
@@ -455,7 +456,7 @@ class MusicGrid extends LitElement {
     typography,
     utilities,
     css`
-      .setup-instructions {
+      .intro {
         max-width: 640px;
       }
       section {
@@ -512,25 +513,28 @@ class MusicGrid extends LitElement {
       wa-tab {
         background-color: var(--color-sand);
         border: none;
+        border-right: 1px solid var(--color-gray);
         border-radius: var(--wa-panel-border-radius) var(--wa-panel-border-radius) 0px 0px;
         cursor: pointer;
         min-width: 140px;
+
+        h2 {
+          background: var(--color-white);
+          font: var(--font-p);
+          letter-spacing: unset;
+          margin: 0;
+          padding: 0 .5em;
+          text-transform: unset;
+          transform: rotate(-3deg);
+        }
       }
       wa-tab[active] {
+        border: none;
         color: initial;
       }
       wa-tab::part(base) {
         font: var(--font-h4);
         letter-spacing: 2px;
-      }
-      wa-tab[id="wa-tab-1"] {
-        background-color: var(--color-sand);
-      }
-      wa-tab[id="wa-tab-2"] {
-        background-color: var(--color-scrub);
-      }
-      wa-tab[id="wa-tab-3"] {
-        background-color: var(--color-tan);
       }
       wa-tab:not(.hidden):has(+ wa-tab.hidden) {
         box-shadow: var(--spacing-1) var(--spacing-1) 0 var(--color-dark-primary);
@@ -538,24 +542,23 @@ class MusicGrid extends LitElement {
       wa-tab-panel {
         background-color: var(--color-sand);
         border-radius: 0 var(--wa-panel-border-radius) var(--wa-panel-border-radius);
-        box-shadow: var(--spacing-1) var(--spacing-1) 0 var(--color-dark-primary);
         padding: 0 var(--spacing-2);
 
         @media screen and (min-width: 640px) {
           padding: 0 var(--spacing-6);
         }
       }
-      wa-tab-panel[id="wa-tab-panel-1"] {
-        background-color: var(--color-sand);
-      }
-      wa-tab-panel[id="wa-tab-panel-2"] {
-        background-color: var(--color-scrub);
-      }
-      wa-tab-panel[id="wa-tab-panel-3"] {
-        background-color: var(--color-tan);
-      }
       wa-tab-panel::part(base) {
         padding: var(--spacing-2);
+      }
+      wa-tab,
+      wa-tab-panel {
+        background-color: var(--color-sand);
+      }
+      wa-tab:not([active]),
+      wa-tab-panel:not([active]) {
+        background-color: var(--color-sand);
+        filter: brightness(.94);
       }
     `
   ];

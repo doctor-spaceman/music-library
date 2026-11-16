@@ -20,19 +20,23 @@ export const typography = css`
   }
   h1, .h1 {
     font: var(--font-h1);
+    letter-spacing: .06em;
     margin-top: 0px;
+    text-transform: lowercase;
   }
   h2, .h2 {
     font: var(--font-h2);
+    letter-spacing: .06em;
     margin: var(--spacing-3) 0;
+    text-transform: lowercase;
   }
   h3, .h3 {
     font: var(--font-h3);
-    margin: 0; 
+    margin: 0;
   }
   h4, .h4 {
     font: var(--font-h4);
-    margin: 0; 
+    margin: 0;
   }
   code {
     border-radius: var(--spacing-1);

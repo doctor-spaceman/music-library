@@ -22,10 +22,10 @@ class MusicCard extends LitElement {
             loading="lazy"
             class="record__thumbnail"
           />
-          <p class="record__artist">${this.record.artist}</p>
-          <h3 class="record__title">${this.record.title}</h3>
+          <p class="p3 record__artist">${this.record.artist}</p>
+          <h3 class="h4 record__title">${this.record.title}</h3>
         </div>
-        <p class="record__release-year">${this.record.year}</p>
+        <p class="p3 record__release-year">${this.record.year}</p>
       </div>
     `
   }
@@ -44,17 +44,6 @@ class MusicCard extends LitElement {
         background-color: var(--color-light-primary);
         border: 1px solid var(--color-gray);
         box-sizing: border-box;
-        box-shadow: 
-          0px 1px 0 var(--color-dark-primary),
-          1px 0px 0 var(--color-dark-primary),
-          1px 2px 0 var(--color-dark-primary),
-          2px 1px 0 var(--color-dark-primary),
-          2px 3px 0 var(--color-dark-primary),
-          3px 2px 0 var(--color-dark-primary),
-          3px 4px 0 var(--color-dark-primary),
-          4px 3px 0 var(--color-dark-primary),
-          4px 5px 0 var(--color-dark-primary),
-          5px 4px 0 var(--color-dark-primary);
         height: 100%;
         padding: var(--spacing-2);
         width: 160px;
@@ -82,7 +71,6 @@ class MusicCard extends LitElement {
       .record__release-year {
         align-self: flex-end;
         color: var(--color-gray);
-        font: var(--font-p-small);
         margin: 0;
       }
     `
