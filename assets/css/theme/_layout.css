@@ -1,4 +1,5 @@
 html {
+  height: 100%;
   overflow-x: hidden;
 }
 body {
@@ -6,13 +7,11 @@ body {
   overflow-x: hidden;
   position: relative;
 }
-#header {
-  padding-top: var(--dna-space-3);
-}
 #header,
 #main,
 #footer {
   position: relative;
+  flex-shrink: 0;
   margin: var(--spacing-2);
   width: calc(100% - calc(var(--spacing-2) * 2));
 
@@ -20,6 +19,12 @@ body {
     margin: var(--spacing-6);
     width: calc(100% - calc(var(--spacing-6) * 2));
   }
+}
+#header {
+  padding: var(--spacing-3) 0;
+}
+#main {
+  flex-grow: 1;
 }
 html:has(music-modal:defined:not(.hidden)),
 body:has(music-modal:defined:not(.hidden)) {

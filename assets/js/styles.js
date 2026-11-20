@@ -90,6 +90,18 @@ export const utilities = css`
 `
 
 export const buttons = css`
+  a {
+    color: var(--color-teal);
+  }
+  a:hover, a:focus {
+    color: var(--color-green);
+  }
+  wa-button::part(base) {
+    background-color: var(--color-teal);
+  }
+  wa-button::part(base):hover {
+    background-color: var(--color-green);
+  }
   .button--simple,
   wa-button.button--simple::part(base) {
     background-color: transparent;

@@ -23,19 +23,20 @@ class MusicUserConfig extends LitElement {
     this.cloudUrl = 'https://discogs-oauth-irmuxojohq-wl.a.run.app';
     this.userAgent = 'MusicLibrary/1.0 +https://mattmclean.net';
     this.$usernameInputRef = createRef();
-    this.username = '';
+    if (window.localStorage.getItem('music-library-user')) {
+      this.username = JSON.parse(window.localStorage.getItem('music-library-user')) || '';
+    }
   }
 
   connectedCallback() {
     super.connectedCallback();
 
+    this.$musicGrid = document.querySelector('music-grid');
     this.authVerifier = this._setAuthValue('verifier');
     this.authToken = this._setAuthValue('token');
     this.authTokenSecret = this._setAuthValue('token_secret');
     window.history.replaceState({}, document.title, `${window.location.href.split('?')[0]}` );
     this._authorizeAccess();
-
-    this.$musicGrid = document.querySelector('music-grid');
   }
 
   disconnectedCallback() {
@@ -49,7 +50,6 @@ class MusicUserConfig extends LitElement {
     ) {
       // We already have non-expiring API credentials
       this.authorized = true;
-      this._getIdentity();
       return;
     }
 
@@ -142,6 +142,12 @@ class MusicUserConfig extends LitElement {
               username: this.username,
             }
           }));
+          try {
+            window.localStorage.setItem('music_library_user', JSON.stringify(this.username))
+          } catch (error) {
+            console.warn('Could not add username to localStorage')
+            console.log(error.mesasge)
+          }
         }
       }
     } catch (error) {
@@ -169,6 +175,7 @@ class MusicUserConfig extends LitElement {
         username: this.username,
       }
     }));
+    window.localStorage.removeItem('music_library_user');
     window.localStorage.removeItem('music_library_oauth_token');
     window.localStorage.removeItem('music_library_oauth_token_secret');
   }
@@ -202,58 +209,6 @@ class MusicUserConfig extends LitElement {
     }
   }, 800)
 
-  _renderFolderAction(folderName, folderId) {
-    console.log(folderName, folderId)
-    return html`
-      <tr
-        class="collection-item__folder flex"
-        data-folder=${folderName}
-      >
-        ${when(
-          folderId?.length,
-          () => html`
-            <td class="collection-item__folder-name">
-              <p>${folderName} folder ID:</p>
-            </td>
-            <td class="flex flex-center">
-              <p>${folderId}</p>
-            </td>
-            <td class="flex flex-center">
-              <wa-button
-                class="user-actions__change-folder button--simple"
-                @click=${(e) => console.log(e)}
-              >
-                Change
-              </wa-button>
-            </td>
-          `,
-          () => html`
-            <td class="user-actions__input-folder">
-              <wa-input
-                inputmode="numeric"
-                placeholder="${folderName} folder ID"
-                @input=${(e) => console.log(e)}
-              >
-                <slot name="label" class="sr-only">
-                  ${folderName} folder ID
-                </slot>
-              </wa-input>
-              <p class="user-actions__input-error p4"></p>
-            </td>
-            <td class="flex flex-center">
-              <wa-button
-                class="user-actions__add-folder button--simple"
-                @click=${(e) => console.log(e)}
-              >
-                Add
-              </wa-button>
-            </td>
-          `
-        )}
-      </tr>
-    `
-  }
-
   render() {
     return html`
       <div class="user-actions flex">
@@ -261,7 +216,7 @@ class MusicUserConfig extends LitElement {
           ${when(
             this.username?.length,
             () => html`
-              <div class="user-actions__signed-in flex flex-column">
+              <div class="user-actions__signed-in flex flex-center">
                 <div class="user-actions__signed-in-name flex flex-center">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
@@ -300,11 +255,6 @@ class MusicUserConfig extends LitElement {
         gap: var(--spacing-6);
         justify-content: flex-end;
       }
-      .user-actions:has(.user-actions__collection) {
-        @media screen and (min-width: 640px) {
-          justify-content: space-between;
-        }
-      }
       .user-actions__account {
         align-items: flex-end;
         align-self: flex-start;
@@ -318,7 +268,7 @@ class MusicUserConfig extends LitElement {
         text-transform: uppercase;
       }
       .user-actions__signed-in {
-        align-items: flex-end;
+        gap: var(--spacing-2);
       }
       .user-actions__signed-in-name {
         gap: var(--spacing-2);
@@ -326,57 +276,6 @@ class MusicUserConfig extends LitElement {
         svg {
           aspect-ratio: 1;
           width: calc(var(--size) * 1.4);
-        }
-      }
-      .user-actions__collection {
-        order: 1;
-
-        @media screen and (max-width: 639px) {
-          width: 100%;
-        }
-        @media screen and (min-width: 640px) {
-          order: 0;
-        }
-      }
-      .user-actions__collection-item::part(label) {
-        font: var(--font-h3);
-        text-transform: uppercase;
-      }
-      .user-actions__collection-item table {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-6);
-
-        @media screen and (min-width: 640px) {
-          gap: var(--spacing-2);
-        }
-      }
-      .collection-item__folder {
-        align-items: flex-start;
-        justify-content: space-between;
-        flex-direction: column;
-        flex-wrap: nowrap;
-
-        @media screen and (min-width: 640px) {
-          align-items: center;
-          flex-direction: row;
-          gap: var(--spacing-2);
-        }
-
-        p {
-          margin: 0;
-        }
-        .collection-item__folder-name {
-          flex: 1 1 auto;
-          padding: 0;
-          text-transform: uppercase;
-        }
-        .user-actions__input-folder wa-input::part(input)::placeholder {
-          text-transform: uppercase;
-        }
-        .user-actions__add-folder {
-          display: flex;
-          align-items: center;
         }
       }
       .user-actions__input-error {

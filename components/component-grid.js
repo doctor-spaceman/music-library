@@ -1,5 +1,5 @@
-import { LitElement, classMap, css, html, nothing, ref, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
-import { structure, theme, typography, utilities } from '../assets/js/styles.js';
+import { LitElement, classMap, css, html, nothing, repeat, when } from 'https://cdn.jsdelivr.net/gh/lit/dist@3.3.0/all/lit-all.min.js';
+import { buttons, structure, theme, typography, utilities } from '../assets/js/styles.js';
 import { debounce, getLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../assets/js/utils.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/accordion/accordion.js';
 import 'https://ka-f.webawesome.com/webawesome@3.14.0/components/button/button.js';
@@ -81,6 +81,10 @@ class MusicGrid extends LitElement {
       'music-library:user-changed',
       this._handleUserChange,
     );
+    if (window.localStorage.getItem('music-library-user')) {
+      this.username = JSON.parse(window.localStorage.getItem('music-library-user'));
+      this._initializeGrid();
+    }
   }
 
   disconnectedCallback() {
@@ -94,7 +98,6 @@ class MusicGrid extends LitElement {
 
   updated(changedProperties) {
     if (changedProperties.has('requesting')) {
-      console.log(this.requesting)
       if (this.$modal) {
         if (this.requesting) {
           this.$modal.classList.remove('hidden');
@@ -115,6 +118,10 @@ class MusicGrid extends LitElement {
 
   _handleUserChange = (event) => {
     this.username = event.detail?.username;
+    this._initializeGrid();
+  }
+
+  _initializeGrid = () => {
     if (this.username?.length) {
       this._setupGrid();
     } else {
@@ -438,26 +445,54 @@ class MusicGrid extends LitElement {
           </wa-tab-group>
         `,
         () => html`
-          <p class="intro">
-            ${when(
-              this.requesting,
-              () => html`Requesting data ...`,
-              () => html`Click "Log In" and authorize this app to use your Discogs account!`,
-            )}
-          </p>
+          ${when(
+            this.requesting,
+            () => html`<p class="intro">Requesting data ...</p>`,
+            () => html`
+              <div class="intro">
+                <p>Before clicking "Log In" to authorize this app with your Discogs account, please do the following:</p>
+                <ol>
+                  <li>
+                    <p>In Discogs, add custom folders to your collection (e.g. CDs, Cassette, Vinyl ...)</p>
+                    <img src="./assets/img/discogs_collection_ui.jpg" />
+                    <br>
+                    <br>
+                    <img src="./assets/img/discogs_folders_ui.jpg" />
+                  </li>
+                  <li>
+                    <p>Organize your releases into the folders you created (this can be done in bulk by checking multiple releases)</p>
+                    <img src="./assets/img/discogs_move_to_folder.jpg" />
+                  </li>
+                </ol>
+              </div>
+            `,  
+          )}
         `
       )}
     `;
   }
 
   static styles = [
+    buttons,
     structure,
     theme,
     typography,
     utilities,
     css`
       .intro {
-        max-width: 640px;
+        width: 100vw;
+        
+        img {
+          width: 66w;
+        }
+
+        @media screen and (min-width: 600px) {
+          width: 66vw;
+          
+          img {
+            width: 48vw;
+          }
+        }
       }
       section {
         padding-bottom: var(--spacing-8);
@@ -541,7 +576,6 @@ class MusicGrid extends LitElement {
       }
       wa-tab-panel {
         background-color: var(--color-sand);
-        border-radius: 0 var(--wa-panel-border-radius) var(--wa-panel-border-radius);
         padding: 0 var(--spacing-2);
 
         @media screen and (min-width: 640px) {

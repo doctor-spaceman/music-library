@@ -26,12 +26,6 @@ class MusicModal extends LitElement {
     super.disconnectedCallback();
   }
 
-  updated(changedProperties) {
-    if (changedProperties.has('requestFailed')) {
-      console.log('this.requestFailed updated in modal:', this.requestFailed)   
-    }
-  }
-
   _closeModal = () => {
     this.classList.add('hidden');
     this.requestFailed = false;

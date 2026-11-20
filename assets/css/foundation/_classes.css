@@ -1,14 +1,10 @@
 /*-----Theme-----*/
 .c-sand { color: var(--color-sand); }
-.c-scrub { color: var(--color-scrub); }
 .c-teal { color: var(--color-teal); }
-.c-tan { color: var(--color-teal); }
 .c-white { color: var(--color-white); }
 
 .bg-sand { background-color: var(--color-sand); }
-.bg-scrub { background-color: var(--color-scrub); }
 .bg-teal { background-color: var(--color-teal); }
-.bg-tan { background-color: var(--color-teal); }
 .bg-white { background-color: var(--color-white); }
 
 /*-----Utilities-----*/
